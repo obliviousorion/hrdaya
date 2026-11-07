@@ -1,0 +1,31 @@
+\documentclass{article}
+\usepackage[a3paper,landscape,margin=15mm]{geometry}
+\usepackage{multicol,graphicx}
+\pagestyle{empty}
+\begin{document}
+\begin{center}
+{\Huge Your Heartbeat Is Your Password}\\[3mm]
+{\Large Lightweight Deep ECG Biometrics for Edge Authentication}\\
+EEE G513 --- Team names and IDs: TODO
+\end{center}
+\begin{multicols}{3}
+\section*{Problem and pipeline}
+TODO: ECG identity recognition and verification. ECG-ID only, ODC-By 1.0.
+Use the shared pipeline figure from report/figures (convert SVG to PDF for LaTeX).
+\section*{Methods}
+TODO: AC/DCT + SVM baseline, LSTM, compact CNN; frozen date-aware split and seed.
+\columnbreak
+\section*{Results}
+Diagnostic recording-disjoint baseline: 79.06\% rank-1, 13.11\% EER.
+Not a cross-day result. TODO: baseline/LSTM/CNN FP32/INT8 comparison, counts,
+model KB and measured Pi latency; align every value with report and JSON.
+\section*{Ablations and errors}
+TODO: same/different day, 1/3/5/10 beats, ROC and error cases.
+\columnbreak
+\section*{Edge replay and limitations}
+TODO: offline ACCEPT/REJECT with development-selected threshold; measured hardware;
+cohort confounds, correlated trials, unaudited annotations.
+\section*{References and code}
+TODO: 3--5 references, ECG-ID/Lugovaya/PhysioNet attribution and tested code QR.
+\end{multicols}
+\end{document}
