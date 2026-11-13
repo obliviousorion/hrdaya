@@ -1,18 +1,18 @@
 /**
  * main.c — Raspberry Pi Pico WH Biometric Authentication Firmware
  *
- * Dual-channel output:
- *   PRIMARY   — USB CDC Serial (/dev/ttyACM0 @ 115200 baud)
- *               Microsecond-accurate inference latency via time_us_32().
- *               Streams 300-sample beats from host laptop; runs onboard self-test.
+ * Asymmetric Multiprocessing (AMP) & Overclocked Engine:
+ *   CORE 0    — I/O, Communications & Presentation (250 MHz)
+ *               - USB CDC Serial (/dev/ttyACM0 @ 115200 baud)
+ *               - Wi-Fi HTTP dashboard (CYW43439 AP mode: SSID 'pico', http://192.168.4.1)
+ *               - Physical LED biometric signaling (2 solid pulses / 5 alert pulses)
  *
- *   SECONDARY — Wi-Fi HTTP dashboard (CYW43439 AP mode)
- *               SSID: "pico"  |  Password: "pico"  |  http://192.168.4.1
- *               Same inference result mirrored to a live browser dashboard.
- *               Auto-refreshes every 2 s. Terminal-dark theme.
+ *   CORE 1    — Dedicated Neural Inference Engine (250 MHz)
+ *               - ECG_ResNet_SE (14,867 params, BN-fused FP32)
+ *               - Full open-set 89-class cosine distance matching
+ *               - Inter-core communication via hardware SIO FIFO & static mailbox
  *
- * Model: ECG_ResNet_SE  |  14,867 params  |  BN-fused float32 weights
- * Hardware: RP2040 @ 133 MHz  |  264 KB SRAM  |  2 MB Flash
+ * Hardware: RP2040 Dual Cortex-M0+ @ 250 MHz (1.20V VREG)  |  264 KB SRAM  |  2 MB Flash
  */
 
 #include <stdio.h>
@@ -21,6 +21,9 @@
 
 #include "pico/stdlib.h"
 #include "pico/time.h"
+#include "pico/multicore.h"
+#include "hardware/vreg.h"
+#include "hardware/clocks.h"
 #include "hardware/gpio.h"
 #include "pico/cyw43_arch.h"
 
@@ -32,10 +35,28 @@
 #define MATCH_THRESHOLD    0.50f
 #define SERIAL_LINE_BUF    4096   /* bytes — fits 300 floats as text */
 
+// ---- Inter-core communication structures -----------------------------------
+typedef struct {
+    float beat[BEAT_LENGTH];
+    int   true_class;
+    char  label[32];
+} inference_request_t;
+
+typedef struct {
+    int      best_id;
+    float    best_sim;
+    uint32_t latency_us;
+    bool     accepted;
+    char     matched_name[32];
+} inference_result_t;
+
 // ---- Static buffers --------------------------------------------------------
 static float serial_beat_buf[BEAT_LENGTH];
 static float current_emb[EMBED_DIM];
 static uint32_t total_beats = 0;
+
+static inference_request_t s_req_box;
+static inference_result_t  s_res_box;
 
 // ---- Helpers ---------------------------------------------------------------
 static void blink_led(int times, int on_ms, int off_ms) {
@@ -47,8 +68,50 @@ static void blink_led(int times, int on_ms, int off_ms) {
     }
 }
 
+// ---- Core 1: Dedicated Neural Inference Engine -----------------------------
+static void core1_inference_worker(void) {
+    while (1) {
+        // Wait for Core 0 to dispatch a request mailbox address
+        uint32_t req_addr = multicore_fifo_pop_blocking();
+        inference_request_t *req = (inference_request_t *)req_addr;
+
+        // High-precision inference timing on Core 1
+        uint32_t t_start = time_us_32();
+        run_embedding(req->beat, current_emb);
+        uint32_t t_elapsed = time_us_32() - t_start;
+
+        // Identification: find best cosine match across enrolled templates
+        int best_id = (req->true_class >= 0) ? req->true_class : 0;
+        float best_sim = cosine_similarity(current_emb,
+                             ENROLLED_TEMPLATES + best_id * EMBED_DIM, EMBED_DIM);
+
+        if (req->true_class < 0) {
+            // Open-set: search all 89 enrolled templates
+            for (int c = 1; c < NUM_CLASSES; ++c) {
+                float s = cosine_similarity(current_emb,
+                              ENROLLED_TEMPLATES + c * EMBED_DIM, EMBED_DIM);
+                if (s > best_sim) { best_sim = s; best_id = c; }
+            }
+        }
+
+        s_res_box.best_id = best_id;
+        s_res_box.best_sim = best_sim;
+        s_res_box.latency_us = t_elapsed;
+        s_res_box.accepted = (best_sim >= MATCH_THRESHOLD);
+
+        const char *mname = (best_id >= 0 && best_id < NUM_CLASSES)
+                            ? ALL_CLASS_NAMES[best_id]
+                            : req->label;
+        strncpy(s_res_box.matched_name, mname, sizeof(s_res_box.matched_name) - 1);
+        s_res_box.matched_name[sizeof(s_res_box.matched_name) - 1] = '\0';
+
+        // Notify Core 0 that inference is complete
+        multicore_fifo_push_blocking((uint32_t)&s_res_box);
+    }
+}
+
 /**
- * Run inference on one beat buffer, print USB serial result, update Wi-Fi dashboard.
+ * Dispatch inference to Core 1, service Wi-Fi during calculation, update outputs.
  * @param beat        Pointer to BEAT_LENGTH (300) float samples.
  * @param true_class  Enrolled class index to compare against, or -1 for open-set search.
  * @param label       Display name for USB serial output (e.g. "Person_01").
@@ -56,46 +119,41 @@ static void blink_led(int times, int on_ms, int off_ms) {
 static void run_and_report(const float *beat, int true_class, const char *label) {
     ++total_beats;
 
-    // --- Inference ---
-    uint32_t t_start = time_us_32();
-    run_embedding(beat, current_emb);
-    uint32_t t_elapsed = time_us_32() - t_start;
+    // Populate request mailbox
+    memcpy(s_req_box.beat, beat, sizeof(float) * BEAT_LENGTH);
+    s_req_box.true_class = true_class;
+    strncpy(s_req_box.label, label, sizeof(s_req_box.label) - 1);
+    s_req_box.label[sizeof(s_req_box.label) - 1] = '\0';
 
-    // --- Identification: best cosine match across all enrolled templates ---
-    int   best_id  = (true_class >= 0) ? true_class : 0;
-    float best_sim = cosine_similarity(current_emb,
-                         ENROLLED_TEMPLATES + best_id * EMBED_DIM, EMBED_DIM);
+    // Dispatch request to Core 1 via hardware SIO FIFO
+    multicore_fifo_push_blocking((uint32_t)&s_req_box);
 
-    if (true_class < 0) {
-        // Open-set: search all templates
-        for (int c = 1; c < NUM_CLASSES; ++c) {
-            float s = cosine_similarity(current_emb,
-                          ENROLLED_TEMPLATES + c * EMBED_DIM, EMBED_DIM);
-            if (s > best_sim) { best_sim = s; best_id = c; }
-        }
+    // Non-blocking wait on Core 0: service Wi-Fi AP while Core 1 crunches math
+    while (!multicore_fifo_rvalid()) {
+        wifi_server_poll();
+        tight_loop_contents();
     }
 
-    bool accepted = (best_sim >= MATCH_THRESHOLD);
-    const char *matched_name = (best_id >= 0 && best_id < NUM_CLASSES)
-                               ? ALL_CLASS_NAMES[best_id]
-                               : label;
+    // Retrieve result pointer from Core 1
+    uint32_t res_addr = multicore_fifo_pop_blocking();
+    inference_result_t *res = (inference_result_t *)res_addr;
 
     // --- Primary: USB Serial output ---
     printf("[%lu] Match: %-10s (probe: %s) -> %-6s  sim=%.4f  t=%lu us (%.2f ms)\n",
            total_beats,
-           matched_name,
+           res->matched_name,
            label,
-           accepted ? "ACCEPT" : "REJECT",
-           best_sim,
-           t_elapsed,
-           (float)t_elapsed / 1000.0f);
+           res->accepted ? "ACCEPT" : "REJECT",
+           res->best_sim,
+           res->latency_us,
+           (float)res->latency_us / 1000.0f);
 
     // --- Secondary: Wi-Fi dashboard update ---
-    wifi_server_update_result(matched_name, best_sim, t_elapsed, accepted, total_beats);
+    wifi_server_update_result(res->matched_name, res->best_sim, res->latency_us, res->accepted, total_beats);
 
     // --- LED feedback: 2 solid pulses = ACCEPT, 5 rapid alert pulses = REJECT ---
-    if (accepted) blink_led(2, 120, 100);
-    else          blink_led(5, 60, 60);
+    if (res->accepted) blink_led(2, 120, 100);
+    else               blink_led(5, 60, 60);
 }
 
 // ---- Onboard self-test suite -----------------------------------------------
@@ -160,6 +218,11 @@ static void run_serial_loop(void) {
 
 // ---- Entry point -----------------------------------------------------------
 int main(void) {
+    // ---- Safe 250 MHz Overclocking & Core Voltage Setup ----
+    vreg_set_voltage(VREG_VOLTAGE_1_20);
+    sleep_ms(10);
+    set_sys_clock_khz(250000, true);
+
     stdio_init_all();
 
     // Wait for USB serial terminal to connect (up to 5 s)
@@ -167,9 +230,16 @@ int main(void) {
 
     printf("\n\n===========================================================\n");
     printf("  Your Heartbeat Is Your Password  --  EEE G513 Project\n");
-    printf("  Hardware : Raspberry Pi Pico WH  (RP2040 @ 133 MHz)\n");
+    printf("  Hardware : RP2040 Dual Cortex-M0+ @ 250 MHz (AMP Mode)\n");
     printf("  Model    : ECG_ResNet_SE  (14.8k params, ~12 KB RAM)\n");
+    printf("  Core 0   : Comms (USB CDC), Wi-Fi AP & Web Dashboard\n");
+    printf("  Core 1   : Dedicated Neural Inference & Cosine Matching\n");
     printf("===========================================================\n");
+
+    // ---- Launch Core 1 Dedicated Neural Inference Engine ----
+    printf("[init] Launching Core 1 neural inference engine...\n");
+    multicore_launch_core1(core1_inference_worker);
+    printf("[init] Core 1 active on dedicated inference pipeline.\n");
 
     // ---- Start Wi-Fi secondary channel ----
     printf("[init] Starting Wi-Fi AP (SSID: pico)...\n");

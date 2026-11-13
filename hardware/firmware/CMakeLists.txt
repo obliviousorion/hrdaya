@@ -41,6 +41,9 @@ target_compile_definitions(pico_ecg_biometrics PRIVATE
 
 target_link_libraries(pico_ecg_biometrics
     pico_stdlib
+    pico_multicore
+    hardware_vreg
+    hardware_clocks
     pico_time
     hardware_gpio
     pico_cyw43_arch_lwip_threadsafe_background
