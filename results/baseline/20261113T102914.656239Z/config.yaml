@@ -1,0 +1,7 @@
+{
+  "experiment": "baseline",
+  "seed": 42,
+  "data": "data",
+  "method": "ac_dct_svm_frozen",
+  "protocol": "last_usable_record"
+}

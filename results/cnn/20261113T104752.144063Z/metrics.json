@@ -1,0 +1,20 @@
+{
+  "status": "measured",
+  "experiment": "cnn",
+  "protocol": "last usable record per person held out; recording-disjoint, NOT proven cross-day",
+  "dataset": "ECG-ID 1.0.0",
+  "seed": 42,
+  "epochs": 30,
+  "identities": 89,
+  "train_beats": 5587,
+  "test_beats": 2288,
+  "identification_accuracy": 0.7115384615384616,
+  "macro_identity_accuracy": 0.7130771755315519,
+  "verification_eer": 0.07317327558804831,
+  "eer_note": "Descriptive empirical test EER; deployment threshold not separately validated.",
+  "model_size_fp32_kb": 59.62,
+  "model_size_int8_kb": 51.93,
+  "int8_identification_accuracy": 0.7137237762237763,
+  "int8_verification_eer": 0.07317327558804831,
+  "training_time_s": 18.4
+}

@@ -1,0 +1,21 @@
+{
+  "status": "measured",
+  "protocol": "last usable record per person held out; NOT proven cross-day",
+  "dataset": "ECG-ID 1.0.0",
+  "model": "AC/DCT(32) + scaled RBF SVM, C=10",
+  "verification_model": "cosine enrollment templates on scaled AC/DCT, not SVM probabilities",
+  "identities": 89,
+  "train_beats": 5587,
+  "test_beats": 2288,
+  "identification_accuracy": 0.7906468531468531,
+  "macro_identity_accuracy": 0.7904113609961341,
+  "verification_eer": 0.13111888111888115,
+  "eer_note": "Descriptive empirical test EER; deployment threshold needs separate validation.",
+  "genuine_trials": 2288,
+  "impostor_trials": 201344,
+  "versions": {
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "sklearn": "1.9.1"
+  }
+}

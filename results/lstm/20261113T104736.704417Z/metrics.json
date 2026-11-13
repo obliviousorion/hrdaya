@@ -1,0 +1,20 @@
+{
+  "status": "measured",
+  "experiment": "lstm",
+  "protocol": "last usable record per person held out; recording-disjoint, NOT proven cross-day",
+  "dataset": "ECG-ID 1.0.0",
+  "seed": 42,
+  "epochs": 30,
+  "identities": 89,
+  "train_beats": 5587,
+  "test_beats": 2288,
+  "identification_accuracy": 0.4916958041958042,
+  "macro_identity_accuracy": 0.49721831422478363,
+  "verification_eer": 0.1000874125874126,
+  "eer_note": "Descriptive empirical test EER; deployment threshold not separately validated.",
+  "model_size_fp32_kb": 92.54,
+  "model_size_int8_kb": 76.6,
+  "int8_identification_accuracy": 0.49256993006993005,
+  "int8_verification_eer": 0.1000874125874126,
+  "training_time_s": 14.3
+}
