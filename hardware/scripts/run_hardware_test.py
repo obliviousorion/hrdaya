@@ -104,6 +104,18 @@ def main():
         help="Number of test beats to stream (default: 20)"
     )
     parser.add_argument(
+        "--subject", type=str, default=None,
+        help="Stream a single beat belonging to this subject (e.g. Person_03)"
+    )
+    parser.add_argument(
+        "--beat-idx", type=int, default=None,
+        help="Stream a single beat by index from the test set"
+    )
+    parser.add_argument(
+        "--impostor", action="store_true",
+        help="Stream an impostor/noise beat to test rejection and 5-blink alert"
+    )
+    parser.add_argument(
         "--timeout", type=float, default=5.0,
         help="Serial read timeout per beat in seconds (default: 5.0)"
     )
@@ -126,11 +138,59 @@ def main():
     X_test = te["X_raw"]
     y_test  = te["y"]
     classes = te["classes"].tolist()
-    n_beats = min(args.beats, len(y_test))
+
+    if args.subject is not None:
+        if args.subject not in classes:
+            print(f"ERROR: Subject '{args.subject}' not found in test set.")
+            print(f"  Available examples: {classes[:5]} ...")
+            sys.exit(1)
+        subj_cls = classes.index(args.subject)
+        matching = np.where(y_test == subj_cls)[0]
+        if len(matching) == 0:
+            print(f"ERROR: No test beats found for subject {args.subject}.")
+            sys.exit(1)
+        selected_indices = [int(matching[0])]
+        is_impostor_list = [False]
+        print(f"Selected test beat for subject '{args.subject}' (test index: {selected_indices[0]}).")
+    elif args.beat_idx is not None:
+        if args.beat_idx < 0 or args.beat_idx >= len(y_test):
+            print(f"ERROR: --beat-idx {args.beat_idx} out of range [0, {len(y_test)-1}].")
+            sys.exit(1)
+        selected_indices = [args.beat_idx]
+        is_impostor_list = [False]
+        subj_name = classes[int(y_test[args.beat_idx])]
+        print(f"Selected test beat at index {args.beat_idx} (subject: {subj_name}).")
+    elif args.impostor:
+        selected_indices = [0]
+        is_impostor_list = [True]
+        print("Impostor mode active: streaming a non-biological synthetic waveform to test REJECT.")
+    else:
+        n_beats = min(args.beats, len(y_test))
+        selected_indices = list(range(n_beats))
+        is_impostor_list = [False] * n_beats
+
+    n_beats = len(selected_indices)
+    beats_to_send = []
+    labels_to_send = []
+    y_to_send = []
+    for idx, imp in zip(selected_indices, is_impostor_list):
+        if imp:
+            # Sawtooth waveform with max_sim ~0.36 across all enrolled templates
+            saw = ((np.arange(300) % 20) / 20.0).astype(np.float32)
+            beats_to_send.append(saw)
+            labels_to_send.append("Impostor")
+            y_to_send.append(0)
+        else:
+            beats_to_send.append(X_test[idx])
+            labels_to_send.append(classes[int(y_test[idx])])
+            y_to_send.append(int(y_test[idx]))
+
+    beats_to_send = np.array(beats_to_send, dtype=np.float32)
+    y_to_send = np.array(y_to_send)
 
     print("Computing PyTorch reference similarities...")
     ref_sims, _ = pytorch_reference_sims(
-        X_test[:n_beats], y_test[:n_beats], classes
+        beats_to_send, y_to_send, classes, is_impostor=is_impostor_list
     )
     has_ref = ref_sims is not None
     if not has_ref:
@@ -170,10 +230,10 @@ def main():
     latencies = []
 
     for i in range(n_beats):
-        beat      = X_test[i]
-        true_cls  = int(y_test[i])
-        true_name = classes[true_cls]
+        beat      = beats_to_send[i]
+        true_name = labels_to_send[i]
         ref_sim   = ref_sims[i] if has_ref else float("nan")
+        is_imp    = is_impostor_list[i]
 
         # Stream beat to Pico (300 comma-separated floats + newline)
         payload = ",".join(f"{v:.6f}" for v in beat) + "\n"
@@ -198,8 +258,12 @@ def main():
         passed  = decision == "ACCEPT"
         matches = delta < 0.005 if has_ref else True
 
-        status = "OK" if (passed and matches) else ("SIM-DRIFT" if not matches else "REJECT")
-        if passed:
+        if is_imp:
+            status = "OK (REJECTED)" if (decision == "REJECT" and matches) else "FAIL"
+        else:
+            status = "OK" if (passed and matches) else ("SIM-DRIFT" if not matches else "REJECT")
+
+        if (passed and not is_imp) or (decision == "REJECT" and is_imp):
             n_pass += 1
         if matches:
             n_match_ref += 1
