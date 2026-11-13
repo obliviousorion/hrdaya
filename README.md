@@ -37,7 +37,9 @@ In real-world biometric access control, authentication integrates consecutive he
 
 ---
 
-## 3. Quickstart & Verification
+## 3. Quickstart & Complete Reproducibility
+
+To reproduce all models, figures, and benchmarks from scratch on a clean clone:
 
 Ensure [uv](https://docs.astral.sh/uv/) is installed, then run from repository root:
 
@@ -46,17 +48,26 @@ Ensure [uv](https://docs.astral.sh/uv/) is installed, then run from repository r
 make setup
 make data
 
-# 2. Run unit and integration tests (deterministic synthetic checks)
-make test
+# 2. Extract 300-sample cardiac cycles & AC/DCT features (strictly recording-disjoint split)
+make features
 
-# 3. Code formatting and linting (Ruff)
+# 3. Train the champion ECG_ResNet_SE model (ArcFace m=0.50 loss)
+make champion
+
+# 4. Run the comprehensive 4-part robustness & stress benchmark suite
+make robustness
+
+# 5. Run multi-beat window ablation & prototype demo
+make ablation
+make demo
+
+# 6. Run unit/integration tests and Ruff linting
+make test
 make lint
 
-# 4. Generate report figure assets (pipeline.svg, confusion.svg)
+# 7. Re-generate publication figures and benchmark leaderboard
 make figures
-
-# 5. Run the offline biometric replay prototype
-python scripts/demo_replay.py --model champion
+make leaderboard
 ```
 
 ---
@@ -115,24 +126,25 @@ mlee-ecg-biometrics/
 
 ---
 
-## 5. Physical Hardware Deployment (Raspberry Pi Pico WH RP2040)
+## 5. Physical Hardware Deployment (Raspberry Pi Pico WH RP2040 Dual-Core AMP)
 
 The champion `ECG_ResNet_SE` architecture is fully deployed on physical silicon:
-*   **Hardware:** Raspberry Pi Pico WH (Dual ARM Cortex-M0+ @ 133 MHz, 264 KB SRAM, 2 MB Flash, CYW43439 Wi-Fi).
-*   **Memory Footprint:** 817 KB compiled Flash payload (including networking stacks), ~102 KB SRAM (~12 KB peak activation double buffer).
-*   **Dual-Channel Architecture:**
-    1.  **Primary Channel (USB CDC Serial):** Streams 300-sample raw cardiac waveforms from host PC; utilizes the RP2040 64-bit hardware microsecond timer (`time_us_32()`).
-    2.  **Secondary Channel (Wi-Fi Soft-AP):** Autonomous wireless access point (`SSID: pico`, password `picosama`) hosting a live dark terminal dashboard at `http://192.168.4.1` with a rolling 5-beat history log.
+*   **Hardware:** Raspberry Pi Pico WH (Dual ARM Cortex-M0+ @ 250 MHz Overclocked AMP, 264 KB SRAM, 2 MB Flash, CYW43439 Wi-Fi).
+*   **Memory Footprint:** 824 KB compiled Flash payload (including networking stacks), ~104 KB SRAM (~12 KB peak activation double buffer).
+*   **Asymmetric Multiprocessing (AMP) Architecture:**
+    1.  **Core 0 (Comms, Wi-Fi & Presentation):** Manages USB CDC serial streaming (`/dev/ttyACM0`), physical LED biometric signaling (2 solid pulses on ACCEPT, 5 rapid alert pulses on REJECT), and hosts the autonomous wireless access point (`SSID: pico`, password `picosama`) serving the live dark terminal dashboard at `http://192.168.4.1`.
+    2.  **Core 1 (Dedicated Neural Inference Engine):** Runs an isolated inference worker listening on the 32-bit hardware SIO FIFO, computing the 1D ResNet-SE convolutional embedding and 89-class cosine matching.
+    3.  **Non-Blocking Concurrency:** While Core 1 computes neural activations, Core 0 continuously services the lwIP Wi-Fi stack, guaranteeing sub-millisecond page reloads without UI hitching.
 *   **Physical Silicon Benchmark:**
-    *   **Mathematical Parity:** $\Delta \text{sim} = 0.0000$ (exact bit-for-bit agreement with PyTorch across all test beats).
-    *   **Measured Execution Latency:** **584.81 ms** (well below the $833.3\text{ ms}$ resting human heart cycle at 72 BPM, proving continuous beat-by-beat real-time edge authentication).
+    *   **Mathematical Parity:** $\Delta \text{sim} = \mathbf{0.0000}$ (exact bit-for-bit agreement with PyTorch float32 reference across authentic and impostor beats).
+    *   **Measured Execution Latency:** **300.05 ms** (down from 584.05 ms at stock 133 MHz, a **48.6% latency reduction**; well below the $833.3\text{ ms}$ resting cardiac cycle at 72 BPM).
 
-To run the live hardware streaming test over USB:
+To run live hardware deployment and streaming tests over USB CDC:
 ```bash
 # Using the all-in-one automation CLI:
-uv run python hardware/scripts/pico_deploy.py stream --subject Person_01  # Single beat test
+uv run python hardware/scripts/pico_deploy.py stream --subject Person_01  # Single authentic beat test
 uv run python hardware/scripts/pico_deploy.py stream --impostor           # Impostor rejection test
-uv run python hardware/scripts/pico_deploy.py all                         # Full build, flash, and test
+uv run python hardware/scripts/pico_deploy.py all                         # Full compile, flash UF2, and test
 ```
 
 ---
