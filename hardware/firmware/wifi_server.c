@@ -8,11 +8,8 @@
  *   - Raw lwIP TCP server on port 80 serves a live HTML dashboard.
  *   - Dashboard auto-refreshes every 2 s via HTTP meta-refresh.
  *   - Design: dark terminal theme, monospace, centered, no emojis, no gradients.
- *   - Features rolling history log of the last 5 inferences.
- *
- * Threading model: cyw43_arch_lwip_threadsafe_background
- *   - lwIP callbacks run in IRQ context.
- *   - Shared state (g_result, g_history) is protected by cyw43_arch critical sections.
+ *   - Rolling history log of the last 5 inferences.
+ *   - 100% STATIC BUFFERS (zero stack allocation, zero dynamic malloc).
  */
 
 #include <stdio.h>
@@ -41,7 +38,6 @@
 #define AP_IP_ADDR    "192.168.4.1"
 #define AP_MASK       "255.255.255.0"
 #define HTTP_PORT     80
-#define HTTP_BUF_SIZE 4096   /* Must fit one complete HTTP response */
 #define HISTORY_LEN   5
 
 // ---- Shared result & history state -----------------------------------------
@@ -77,11 +73,14 @@ static volatile int g_history_count = 0;
 static dhcp_server_t s_dhcp;
 static struct tcp_pcb *s_server_pcb = NULL;
 
+// Static response buffers in BSS to prevent stack overflow on Cortex-M0+
+static char s_html_buf[1800];
+static char s_rows_buf[600];
+static char s_resp_buf[2200];
+
 // ---- HTML dashboard builder ------------------------------------------------
-// Terminal-dark theme: #0a0a0a background, #c8c8c8 text, monospace.
-// No emojis, no gradients. Single-page, auto-refresh every 2 s.
-static int build_http_response(char *buf, int buf_size) {
-    // Snapshot shared state inside a critical section
+static int build_http_response(void) {
+    // Snapshot shared state
     cyw43_arch_lwip_begin();
     infer_result_t r = (infer_result_t){ 0 };
     memcpy((void*)&r, (void*)&g_result, sizeof(infer_result_t));
@@ -98,14 +97,14 @@ static int build_http_response(char *buf, int buf_size) {
     const char *decision_col  = r.accepted ? "#5af78e" : "#f97583";
     const char *status_prefix = r.has_result ? "" : "-- ";
 
-    // Build rolling history rows
-    char rows_html[1024] = "";
+    // Build rolling history rows into static buffer
+    s_rows_buf[0] = '\0';
     int offset = 0;
-    for (int i = 0; i < h_count; ++i) {
+    for (int i = 0; i < h_count && offset < 500; ++i) {
         float h_lat_ms = (float)h[i].latency_us / 1000.0f;
         const char *h_dec = h[i].accepted ? "ACCEPT" : "REJECT";
         const char *h_col = h[i].accepted ? "#5af78e" : "#f97583";
-        offset += snprintf(rows_html + offset, sizeof(rows_html) - offset,
+        offset += snprintf(s_rows_buf + offset, sizeof(s_rows_buf) - offset,
             "<tr>"
               "<td>#%02lu</td>"
               "<td>%s</td>"
@@ -122,12 +121,11 @@ static int build_http_response(char *buf, int buf_size) {
         );
     }
     if (h_count == 0) {
-        snprintf(rows_html, sizeof(rows_html),
-            "<tr><td colspan=\"5\" style=\"color:#444;text-align:center;padding:8px\">AWAITING INFERENCE...</td></tr>");
+        snprintf(s_rows_buf, sizeof(s_rows_buf),
+            "<tr><td colspan=\"5\" style=\"color:#444;text-align:center;padding:6px\">AWAITING BEATS...</td></tr>");
     }
 
-    char html[3200];
-    int hlen = snprintf(html, sizeof(html),
+    int hlen = snprintf(s_html_buf, sizeof(s_html_buf),
         "<!DOCTYPE html>"
         "<html lang=\"en\">"
         "<head>"
@@ -140,30 +138,30 @@ static int build_http_response(char *buf, int buf_size) {
             "body{background:#0a0a0a;color:#c8c8c8;"
                  "font-family:'Courier New',Courier,monospace;"
                  "display:flex;align-items:center;justify-content:center;"
-                 "min-height:100vh;padding:16px}"
-            ".box{width:100%%;max-width:440px;border:1px solid #2a2a2a;background:#111}"
+                 "min-height:100vh;padding:12px}"
+            ".box{width:100%%;max-width:400px;border:1px solid #2a2a2a;background:#111}"
             ".hdr{background:#161616;border-bottom:1px solid #2a2a2a;"
-                 "padding:9px 16px;font-size:10px;color:#555;"
+                 "padding:8px 14px;font-size:10px;color:#555;"
                  "letter-spacing:2px;text-transform:uppercase}"
-            ".body{padding:18px 18px 14px}"
+            ".body{padding:14px}"
             ".row{display:flex;justify-content:space-between;"
-                 "padding:6px 0;border-bottom:1px solid #1a1a1a}"
+                 "padding:5px 0;border-bottom:1px solid #1a1a1a}"
             ".lbl{color:#555;font-size:11px;letter-spacing:1px}"
             ".val{color:#ddd;font-size:11px}"
             ".dec{font-size:13px;font-weight:bold;letter-spacing:2px;color:%s}"
-            ".subhdr{margin-top:14px;padding:6px 0 4px;font-size:9px;color:#444;"
-                    "letter-spacing:1.5px;border-top:1px solid #1f1f1f}"
+            ".subhdr{margin-top:12px;padding:5px 0 3px;font-size:9px;color:#444;"
+                    "letter-spacing:1px;border-top:1px solid #1f1f1f}"
             ".htbl{width:100%%;border-collapse:collapse;font-size:10px;margin-top:2px}"
             ".htbl th{text-align:left;color:#444;font-size:8px;padding:3px 2px;"
                      "letter-spacing:1px;border-bottom:1px solid #1a1a1a}"
-            ".htbl td{padding:4px 2px;color:#aaa;border-bottom:1px solid #141414}"
-            ".ftr{padding:8px 16px;border-top:1px solid #161616;"
+            ".htbl td{padding:3px 2px;color:#aaa;border-bottom:1px solid #141414}"
+            ".ftr{padding:6px 14px;border-top:1px solid #161616;"
                  "font-size:9px;color:#2e2e2e;text-align:right}"
           "</style>"
         "</head>"
         "<body>"
           "<div class=\"box\">"
-            "<div class=\"hdr\">ECG-BIOMETRIC // RP2040 // PICO-WH</div>"
+            "<div class=\"hdr\">ECG-BIOMETRIC // RP2040</div>"
             "<div class=\"body\">"
               "<div class=\"row\">"
                 "<span class=\"lbl\">IDENTITY</span>"
@@ -171,21 +169,21 @@ static int build_http_response(char *buf, int buf_size) {
               "</div>"
               "<div class=\"row\">"
                 "<span class=\"lbl\">SIMILARITY</span>"
-                "<span class=\"val\">%.4f &nbsp;/&nbsp; 0.5000</span>"
+                "<span class=\"val\">%.4f / 0.5000</span>"
               "</div>"
               "<div class=\"row\">"
                 "<span class=\"lbl\">LATENCY</span>"
                 "<span class=\"val\">%.2f ms</span>"
               "</div>"
               "<div class=\"row\">"
-                "<span class=\"lbl\">BEATS EVAL</span>"
+                "<span class=\"lbl\">BEATS</span>"
                 "<span class=\"val\">%lu</span>"
               "</div>"
-              "<div class=\"row\" style=\"border:none;padding-top:10px\">"
+              "<div class=\"row\" style=\"border:none;padding-top:8px\">"
                 "<span class=\"lbl\">DECISION</span>"
                 "<span class=\"dec\">[ %s ]</span>"
               "</div>"
-              "<div class=\"subhdr\">[ INFERENCE LOG // LAST 5 BEATS ]</div>"
+              "<div class=\"subhdr\">[ RECENT INFERENCE LOG ]</div>"
               "<table class=\"htbl\">"
                 "<thead>"
                   "<tr>"
@@ -211,10 +209,10 @@ static int build_http_response(char *buf, int buf_size) {
         (double)latency_ms,
         (unsigned long)r.beat_count,
         decision_str,
-        rows_html
+        s_rows_buf
     );
 
-    return snprintf(buf, buf_size,
+    return snprintf(s_resp_buf, sizeof(s_resp_buf),
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html; charset=utf-8\r\n"
         "Content-Length: %d\r\n"
@@ -222,13 +220,31 @@ static int build_http_response(char *buf, int buf_size) {
         "Cache-Control: no-cache\r\n"
         "\r\n"
         "%s",
-        hlen, html
+        hlen, s_html_buf
     );
 }
 
 // ---- lwIP TCP callbacks ----------------------------------------------------
+static err_t tcp_sent_cb(void *arg, struct tcp_pcb *tpcb, u16_t len) {
+    (void)arg;
+    (void)len;
+    tcp_arg(tpcb, NULL);
+    tcp_sent(tpcb, NULL);
+    tcp_recv(tpcb, NULL);
+    tcp_err(tpcb, NULL);
+    tcp_close(tpcb);
+    return ERR_OK;
+}
+
+static void tcp_err_cb(void *arg, err_t err) {
+    (void)arg;
+    (void)err;
+}
+
 static err_t tcp_recv_cb(void *arg, struct tcp_pcb *tpcb,
                           struct pbuf *p, err_t err) {
+    (void)arg;
+    (void)err;
     if (!p) {
         tcp_close(tpcb);
         return ERR_OK;
@@ -238,19 +254,16 @@ static err_t tcp_recv_cb(void *arg, struct tcp_pcb *tpcb,
     tcp_recved(tpcb, p->tot_len);
     pbuf_free(p);
 
-    // Build and send HTTP response
-    char *resp = (char *)malloc(HTTP_BUF_SIZE);
-    if (!resp) {
-        tcp_close(tpcb);
-        return ERR_MEM;
-    }
-    int resp_len = build_http_response(resp, HTTP_BUF_SIZE);
-    if (resp_len > 0 && resp_len < HTTP_BUF_SIZE) {
-        tcp_write(tpcb, resp, (u16_t)resp_len, TCP_WRITE_FLAG_COPY);
+    // Build HTTP response in static buffer
+    int resp_len = build_http_response();
+    if (resp_len > 0 && resp_len < (int)sizeof(s_resp_buf)) {
+        tcp_sent(tpcb, tcp_sent_cb);
+        tcp_err(tpcb, tcp_err_cb);
+        tcp_write(tpcb, s_resp_buf, (u16_t)resp_len, TCP_WRITE_FLAG_COPY);
         tcp_output(tpcb);
+    } else {
+        tcp_close(tpcb);
     }
-    free(resp);
-    tcp_close(tpcb);
     return ERR_OK;
 }
 
@@ -282,7 +295,7 @@ int wifi_server_init(void) {
     netif_set_netmask(ap_netif, &mask);
     netif_set_gw(ap_netif, &gw);
 
-    // Start DHCP server so connecting clients get an IP automatically
+    // Start DHCP server
     dhcp_server_init(&s_dhcp, &gw, &mask);
 
     // Open TCP listener on port 80
