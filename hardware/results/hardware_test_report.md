@@ -1,6 +1,6 @@
 # Hardware Test Report — Raspberry Pi Pico WH
 
-**Timestamp:** 2026-11-13T19:08:58Z  
+**Timestamp:** 2026-11-13T19:26:31Z  
 **Port:** /dev/ttyACM0  
 **Beats tested:** 1  
 **Model:** `ECG_ResNet_SE` (14,867 params, BN-fused float32)  
