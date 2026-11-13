@@ -239,11 +239,12 @@ def main():
         payload = ",".join(f"{v:.6f}" for v in beat) + "\n"
         ser.write(payload.encode("utf-8"))
 
-        # Read Pico response
+        # Read Pico response (filtering out background Wi-Fi debug prints)
         resp_line = ""
-        for _ in range(3):
-            resp_line = ser.readline().decode("utf-8", errors="ignore").strip()
-            if resp_line:
+        for _ in range(10):
+            line = ser.readline().decode("utf-8", errors="ignore").strip()
+            if "sim=" in line:
+                resp_line = line
                 break
 
         parsed = parse_pico_line(resp_line)
