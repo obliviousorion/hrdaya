@@ -214,7 +214,7 @@ def main():
     deadline = time.time() + 8.0
     while time.time() < deadline:
         line = ser.readline().decode("utf-8", errors="ignore").strip()
-        if line:
+        if line and not line.startswith("[wifi]"):
             print(f"  [boot] {line}")
         if "Listening for live beats" in line:
             break

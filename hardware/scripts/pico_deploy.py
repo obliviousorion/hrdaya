@@ -59,7 +59,6 @@ def cmd_build():
 
 def find_pico_mount():
     """Find the mount directory for the Pico BOOTSEL drive (RPI-RP2)."""
-    # Check standard Linux mount locations
     candidates = [
         Path("/run/media") / os.getenv("USER", "orion") / "RPI-RP2",
         Path("/media") / os.getenv("USER", "orion") / "RPI-RP2",
@@ -69,14 +68,15 @@ def find_pico_mount():
         if c.exists() and (c / "INFO_UF2.TXT").exists():
             return c
 
-    # Try mounting /dev/sda1 via udisksctl
-    log("Attempting to mount /dev/sda1 via udisksctl...")
-    subprocess.run("udisksctl mount -b /dev/sda1", shell=True, capture_output=True)
-    time.sleep(1.0)
-
-    for c in candidates:
-        if c.exists() and (c / "INFO_UF2.TXT").exists():
-            return c
+    # Try mounting /dev/sda1 via udisksctl with retries
+    for attempt in range(4):
+        if Path("/dev/sda1").exists() or Path("/dev/sda").exists():
+            subprocess.run("udisksctl mount -b /dev/sda1", shell=True, capture_output=True)
+            time.sleep(1.0)
+            for c in candidates:
+                if c.exists() and (c / "INFO_UF2.TXT").exists():
+                    return c
+        time.sleep(1.0)
     return None
 
 
@@ -92,13 +92,8 @@ def cmd_flash():
         # If not mounted, try triggering 1200-baud reset on CDC serial
         if Path(SERIAL_PORT).exists():
             log(f"Triggering 1200-baud soft-reset on {SERIAL_PORT}...")
-            try:
-                import serial
-                s = serial.Serial(SERIAL_PORT, 1200)
-                s.close()
-            except Exception:
-                run_cmd(f"stty -F {SERIAL_PORT} 1200", check=False)
-            time.sleep(2.5)
+            run_cmd(f"stty -F {SERIAL_PORT} 1200", check=False)
+            time.sleep(3.0)
             mount_dir = find_pico_mount()
 
     if mount_dir is None:

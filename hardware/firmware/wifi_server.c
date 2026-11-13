@@ -270,9 +270,7 @@ static err_t tcp_recv_cb(void *arg, struct tcp_pcb *tpcb,
         err_t werr = tcp_write(tpcb, s_resp_buf, (u16_t)resp_len, 0);
         if (werr == ERR_OK) {
             tcp_output(tpcb);
-            printf("[wifi] HTTP sent %d bytes\n", resp_len);
         } else {
-            printf("[wifi] tcp_write err: %d\n", (int)werr);
             tcp_close(tpcb);
         }
     } else {
