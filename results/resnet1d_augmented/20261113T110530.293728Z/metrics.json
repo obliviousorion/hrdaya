@@ -1,0 +1,13 @@
+{
+  "experiment": "resnet1d_augmented",
+  "augment": true,
+  "epochs": 40,
+  "rank1_fp32": 0.875,
+  "macro_fp32": 0.871460791302086,
+  "eer_fp32": 0.04895104895104896,
+  "rank1_int8": 0.8741258741258742,
+  "eer_int8": 0.04895104895104896,
+  "fp32_kb": 70.1,
+  "int8_kb": 58.38,
+  "time_s": 61.6
+}
