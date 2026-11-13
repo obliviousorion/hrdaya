@@ -74,9 +74,9 @@ static dhcp_server_t s_dhcp;
 static struct tcp_pcb *s_server_pcb = NULL;
 
 // Static response buffers in BSS to prevent stack overflow on Cortex-M0+
-static char s_html_buf[1800];
-static char s_rows_buf[600];
-static char s_resp_buf[2200];
+static char s_html_buf[4096];
+static char s_rows_buf[1200];
+static char s_resp_buf[4600];
 
 // ---- HTML dashboard builder ------------------------------------------------
 static int build_http_response(void) {
@@ -100,7 +100,7 @@ static int build_http_response(void) {
     // Build rolling history rows into static buffer
     s_rows_buf[0] = '\0';
     int offset = 0;
-    for (int i = 0; i < h_count && offset < 500; ++i) {
+    for (int i = 0; i < h_count && offset < 1000; ++i) {
         float h_lat_ms = (float)h[i].latency_us / 1000.0f;
         const char *h_dec = h[i].accepted ? "ACCEPT" : "REJECT";
         const char *h_col = h[i].accepted ? "#5af78e" : "#f97583";
@@ -125,7 +125,7 @@ static int build_http_response(void) {
             "<tr><td colspan=\"5\" style=\"color:#444;text-align:center;padding:6px\">AWAITING BEATS...</td></tr>");
     }
 
-    int hlen = snprintf(s_html_buf, sizeof(s_html_buf),
+    snprintf(s_html_buf, sizeof(s_html_buf),
         "<!DOCTYPE html>"
         "<html lang=\"en\">"
         "<head>"
@@ -212,7 +212,9 @@ static int build_http_response(void) {
         s_rows_buf
     );
 
-    return snprintf(s_resp_buf, sizeof(s_resp_buf),
+    int hlen = (int)strlen(s_html_buf);
+
+    int total_len = snprintf(s_resp_buf, sizeof(s_resp_buf),
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html; charset=utf-8\r\n"
         "Content-Length: %d\r\n"
@@ -222,6 +224,10 @@ static int build_http_response(void) {
         "%s",
         hlen, s_html_buf
     );
+    if (total_len >= (int)sizeof(s_resp_buf)) {
+        total_len = (int)sizeof(s_resp_buf) - 1;
+    }
+    return total_len;
 }
 
 // ---- lwIP TCP callbacks ----------------------------------------------------

@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 
-def pytorch_reference_sims(X_raw, y, classes):
+def pytorch_reference_sims(X_raw, y, classes, is_impostor=None):
     """Compute cosine similarities using the PyTorch champion model (reference)."""
     try:
         import torch
@@ -60,7 +60,10 @@ def pytorch_reference_sims(X_raw, y, classes):
 
     sims = []
     for i, (emb, true_cls) in enumerate(zip(embs_n, y)):
-        s = float(np.dot(emb, templates[true_cls]))
+        if is_impostor and is_impostor[i]:
+            s = float(np.max(np.dot(templates, emb)))
+        else:
+            s = float(np.dot(emb, templates[true_cls]))
         sims.append(s)
 
     return sims, templates

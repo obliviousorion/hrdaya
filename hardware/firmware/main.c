@@ -93,9 +93,9 @@ static void run_and_report(const float *beat, int true_class, const char *label)
     // --- Secondary: Wi-Fi dashboard update ---
     wifi_server_update_result(matched_name, best_sim, t_elapsed, accepted, total_beats);
 
-    // --- LED feedback: 2 fast blinks = ACCEPT, 1 slow blink = REJECT ---
-    if (accepted) blink_led(2, 80, 80);
-    else          blink_led(1, 400, 0);
+    // --- LED feedback: 2 solid pulses = ACCEPT, 5 rapid alert pulses = REJECT ---
+    if (accepted) blink_led(2, 120, 100);
+    else          blink_led(5, 60, 60);
 }
 
 // ---- Onboard self-test suite -----------------------------------------------
