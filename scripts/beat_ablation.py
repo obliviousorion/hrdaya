@@ -1,28 +1,16 @@
-"""Beat ablation study: accuracy at 1 and 5 consecutive beats per decision.
-
-Tests SVM baseline, LSTM, and CNN on the same frozen test split.
-Beats are taken as the first N consecutive beats from each test recording.
-Never mixes enrollment and probe beats.
-
-Usage:
-    PYTHONPATH=src uv run python scripts/beat_ablation.py
-"""
+"""Beat ablation study: accuracy at 1 and 5 consecutive beats per decision."""
 import json
-import pickle
-import sys
 from pathlib import Path
 
 import numpy as np
 import torch
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT / "scripts"))
-
 from mlee.baseline import features as dct_features
 from mlee.baseline import read_record, segment
 from mlee.cnn_model import ECG_CNN
 from mlee.lstm_model import ECG_LSTM
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_beats_by_recording(data_dir):
@@ -105,7 +93,6 @@ def main():
 
     # SVM: retrain from cached features (fast)
     tr = np.load(private / "features_train.npz", allow_pickle=True)
-    te = np.load(private / "features_test.npz", allow_pickle=True)
     classes = tr["classes"].tolist()
     n_classes = len(classes)
     svm = make_pipeline(StandardScaler(), SVC(C=10, kernel="rbf", gamma="scale"))

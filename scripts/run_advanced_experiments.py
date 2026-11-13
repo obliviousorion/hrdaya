@@ -1,11 +1,11 @@
 """Experiment runner for advanced lightweight improvements:
+
 1. Baseline CNN with Data Augmentation
 2. Lightweight 1D-ResNet
 3. 1D-ResNet with ArcFace Loss
 """
 import json
 import os
-import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,14 +16,13 @@ import torch.nn as nn
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-
 from mlee.arcface import ArcMarginProduct
 from mlee.cnn_model import ECG_CNN
 from mlee.dataset import ECGDataset
 from mlee.resnet_model import ECG_ResNet
 from mlee.train import _cosine_eer
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def stamp():

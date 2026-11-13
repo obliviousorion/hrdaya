@@ -1,32 +1,16 @@
-"""Run all three models and produce the full comparison metrics.
-
-Usage:
-    PYTHONPATH=src uv run python scripts/run_all_models.py
-
-Outputs (all to private/ — gitignored):
-  features_train.npz, features_test.npz   — cached features
-  lstm_fp32.pt, lstm_int8.pt              — model weights
-  cnn_fp32.pt,  cnn_int8.pt              — model weights
-  lstm_scaler.pkl                         — StandardScaler for LSTM
-
-Tracked results (small JSON, no weights):
-  results/lstm/TIMESTAMP/metrics.json
-  results/cnn/TIMESTAMP/metrics.json
-"""
-import sys
+"""Run all three models and produce the full comparison metrics."""
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT / "scripts"))
-
 import numpy as np
 
+from leaderboard import generate
 from mlee.cnn_model import ECG_CNN
 from mlee.lstm_model import ECG_LSTM
 from mlee.train import train
 from prepare_features import main as prepare_features
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def stamp():
@@ -103,6 +87,7 @@ def main():
 
     # Write a simple combined summary JSON (leaderboard schema needs run.json; skip for now)
     import json as _json
+    generate()
     summary = {
         "baseline": {"identification_accuracy": 0.7906, "verification_eer": 0.1311,
                      "model_size_fp32_kb": None, "model_size_int8_kb": None},

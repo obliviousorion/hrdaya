@@ -1,7 +1,6 @@
 """Hybrid training loop combining CrossEntropy and ArcFace margin loss."""
 import json
 import os
-import sys
 import time
 from pathlib import Path
 
@@ -11,13 +10,12 @@ import torch.nn as nn
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src"))
-
 from mlee.arcface import ArcMarginProduct
 from mlee.dataset import ECGDataset
 from mlee.resnet_se_model import ECG_ResNet_SE
 from mlee.train import _cosine_eer
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def train_hybrid(

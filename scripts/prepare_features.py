@@ -1,21 +1,12 @@
-"""Extract AC/DCT(32) features and raw beat windows from ECG-ID.
-
-Saves to private/ (gitignored):
-  features_train.npz  - X (N,32) AC/DCT, X_raw (N,300) beats, y (N,) labels, classes
-  features_test.npz   - same keys for test split
-
-Uses identical split logic to baseline.run(): last usable record per person → test.
-Run after: make data
-"""
+"""Extract AC/DCT(32) features and raw beat windows from ECG-ID."""
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 from mlee.baseline import features, read_record, segment
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def main(data_dir=None, out_dir=None):

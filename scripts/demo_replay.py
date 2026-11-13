@@ -1,13 +1,4 @@
-"""Offline ACCEPT/REJECT demo — the running prototype deliverable.
-
-Loads the INT8 CNN + enrollment templates and replays held-out test recordings.
-Threshold: cosine similarity > 0.5 (heuristic, not validation-set tuned — stated explicitly).
-
-Usage:
-    PYTHONPATH=src uv run python scripts/demo_replay.py [--person Person_01] [--model cnn|lstm]
-
-Without --person: replays all test recordings.
-"""
+"""Offline ACCEPT/REJECT demo — the running prototype deliverable."""
 import argparse
 import pickle
 import sys
@@ -16,13 +7,12 @@ from pathlib import Path
 import numpy as np
 import torch
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-
 from mlee.baseline import features as dct_features
 from mlee.baseline import read_record, segment
 from mlee.cnn_model import ECG_CNN
 from mlee.lstm_model import ECG_LSTM
+
+ROOT = Path(__file__).resolve().parents[1]
 
 THRESHOLD = 0.5  # heuristic cosine threshold — not validation-set tuned
 
@@ -81,7 +71,6 @@ def main():
 
     private = ROOT / "private"
     tr = np.load(private / "features_train.npz", allow_pickle=True)
-    te = np.load(private / "features_test.npz", allow_pickle=True)
     classes = tr["classes"].tolist()
     n_classes = len(classes)
     device = torch.device("cpu")
@@ -161,7 +150,7 @@ def main():
 
     if total > 0:
         print(f"\nACCEPT rate (genuine): {correct}/{total} = {correct/total*100:.1f}%")
-        print(f"(All replays use the person's own claimed identity — genuine trials only)")
+        print("(All replays use the person's own claimed identity — genuine trials only)")
 
 
 if __name__ == "__main__":

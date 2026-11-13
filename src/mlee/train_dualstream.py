@@ -1,7 +1,6 @@
 """Training script for Dual-Stream ResNet with Label Smoothing and Calibrated ArcFace."""
 import json
 import os
-import sys
 import time
 from pathlib import Path
 
@@ -11,13 +10,12 @@ import torch.nn as nn
 from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src"))
-
 from mlee.arcface import ArcMarginProduct
 from mlee.dataset import ECGDataset
 from mlee.resnet_dualstream_model import ECG_ResNet_DualStream
 from mlee.train import _eer
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _cosine_eer_dualstream(model, X_test, y_test, X_train, y_train, classes, device):
