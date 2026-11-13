@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MLEE Course Project Poster</title>
+<style>
+  @page {
+    size: 841mm 1189mm; /* A0 portrait */
+    margin: 0;
+  }
+  @page a3 {
+    size: 420mm 297mm; /* A3 landscape */
+    margin: 0;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    width: 841mm;
+    height: 1189mm;
+    background-color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #111111;
+    padding: 20mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  header {
+    background: #1F3864;
+    color: #ffffff;
+    padding: 25mm 20mm;
+    border-radius: 8mm;
+    text-align: center;
+    box-shadow: 0 4mm 10mm rgba(0,0,0,0.15);
+  }
+  h1 {
+    font-size: 52pt;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 8mm;
+  }
+  h2 {
+    font-size: 32pt;
+    font-weight: 600;
+    color: #C9A227;
+    margin-bottom: 6mm;
+  }
+  .meta {
+    font-size: 22pt;
+    color: #e0e8f5;
+  }
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15mm;
+    margin-top: 15mm;
+    flex-grow: 1;
+  }
+  .column {
+    display: flex;
+    flex-direction: column;
+    gap: 12mm;
+  }
+  .block {
+    background: #ffffff;
+    border: 1.5mm solid #2E75B6;
+    border-radius: 6mm;
+    overflow: hidden;
+    box-shadow: 0 2mm 8mm rgba(0,0,0,0.06);
+  }
+  .block-title {
+    background: #2E75B6;
+    color: #ffffff;
+    font-size: 24pt;
+    font-weight: 700;
+    padding: 6mm 10mm;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .block-body {
+    padding: 8mm 10mm;
+    font-size: 16pt;
+    line-height: 1.45;
+  }
+  ul, ol {
+    margin-left: 8mm;
+    margin-top: 3mm;
+    margin-bottom: 3mm;
+  }
+  li {
+    margin-bottom: 3mm;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4mm;
+    margin-bottom: 4mm;
+    font-size: 14pt;
+  }
+  th, td {
+    padding: 4mm 5mm;
+    text-align: left;
+    border-bottom: 0.5mm solid #dddddd;
+  }
+  th {
+    background: #f0f5fa;
+    color: #1F3864;
+    font-weight: 700;
+    border-bottom: 1.5mm solid #2E75B6;
+  }
+  .highlight-row {
+    background: #eef6ee;
+    font-weight: bold;
+    color: #146432;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2mm 4mm;
+    border-radius: 3mm;
+    font-size: 13pt;
+    font-weight: bold;
+    background: #2E75B6;
+    color: #ffffff;
+  }
+  footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1.5mm solid #1F3864;
+    padding-top: 8mm;
+    font-size: 16pt;
+    color: #555555;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Your Heartbeat Is Your Password</h1>
+  <h2>Lightweight Deep ECG Biometrics for Edge Authentication</h2>
+  <div class="meta">
+    <strong>Course:</strong> EEE G513: Machine Learning for Electrical Engineers &nbsp;·&nbsp;
+    <strong>Instructor:</strong> Dr. Ritesh Vyas &nbsp;·&nbsp;
+    <strong>Team:</strong> Orion &nbsp;·&nbsp;
+    <strong>Institution:</strong> BITS Pilani
+  </div>
+</header>
+
+<div class="main-grid">
+
+  <!-- LEFT COLUMN -->
+  <div class="column">
+    
+    <div class="block">
+      <div class="block-title">Problem & Executive Summary</div>
+      <div class="block-body">
+        <ul>
+          <li><strong>Vulnerability of Conventional Modalities:</strong> Fingerprint and facial biometrics are vulnerable to spoofing (synthetic masks, silicone prints) and lack inherent vitality guarantees.</li>
+          <li><strong>Vitality & Distinctiveness of ECG:</strong> Cardiac electrophysiology provides intrinsic liveness. Anatomical heart geometry, chest orientation, and conduction velocity confer unique P-QRS-T waveforms.</li>
+          <li><strong>Edge Hardware Target:</strong> Resource-constrained microcontrollers (&le;100 KB RAM, &le;1 ms latency) such as the $1 Raspberry Pi Pico (RP2040) or ESP32.</li>
+          <li><strong>Benchmark Integrity:</strong> Evaluated on the open PhysioNet ECG-ID Database (89 subjects, 7,875 beats) on a strictly recording-disjoint split.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-title">Proposed Pipeline & Methodology</div>
+      <div class="block-body">
+        <ol>
+          <li><strong>Signal Filtering:</strong> Raw lead-I ECG zero-phase filtered with a 4th-order Butterworth bandpass (0.5–40.0 Hz) to eliminate baseline wander and high-frequency EMG noise.</li>
+          <li><strong>QRS Detection:</strong> Squared derivative energy envelope with adaptive prominence detects R-peaks. Windows of 300 samples (0.6 s: 0.2 s pre-R to 0.4 s post-R) are segmented and z-score normalized.</li>
+          <li><strong>Augmentation Engine:</strong> On-the-fly random temporal roll (&plusmn;8 samples), amplitude scaling (&plusmn;10%), and dynamic heart-rate resampling jitter (&plusmn;5%).</li>
+          <li><strong>Architecture (<code>ECG_ResNet_SE</code>):</strong>
+            <ul>
+              <li>Depthwise-separable convolutions cut parameter count by 70%.</li>
+              <li>Squeeze-and-Excitation (SE) channel attention adaptively reweights individual-specific wave components (QRS vs. P/T wave).</li>
+              <li>48-dimensional normalized latent biometric embedding space.</li>
+            </ul>
+          </li>
+          <li><strong>Multi-Task Hybrid Objective:</strong>
+            $$\mathcal{L} = \mathcal{L}_{\text{CrossEntropy}} + 0.5 \cdot \mathcal{L}_{\text{ArcFace}}$$
+            Simultaneously optimizes 1:N closed-set identification and unit-hypersphere metric clustering for 1:1 verification.
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-title">Experimental Setup & Specifications</div>
+      <div class="block-body">
+        <table>
+          <tr><th>Parameter</th><th>Value / Configuration</th></tr>
+          <tr><td><strong>Dataset Source</strong></td><td>PhysioNet ECG-ID Database v1.0.0 (310 recordings, 90 subjects)</td></tr>
+          <tr><td><strong>Evaluation Split</strong></td><td>Recording-disjoint holdout (5,587 train, 2,288 test beats across 89 IDs)</td></tr>
+          <tr><td><strong>Input Format</strong></td><td>300-sample raw normalized heartbeat window (500 Hz sample rate)</td></tr>
+          <tr><td><strong>Model Parameter Count</strong></td><td><strong>14,867 parameters</strong> (~0.45 MFLOPs per heartbeat)</td></tr>
+          <tr><td><strong>Quantization</strong></td><td>Post-training PyTorch dynamic INT8 (zero accuracy degradation)</td></tr>
+          <tr><td><strong>Target Hardware</strong></td><td>Linux edge SBCs (Raspberry Pi family) & MCUs (RP2040 Pico / ESP32)</td></tr>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="column">
+
+    <div class="block">
+      <div class="block-title">Master Performance Benchmark</div>
+      <div class="block-body">
+        <p>Evaluated on the frozen, leak-free held-out test split of the ECG-ID dataset:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Architecture</th>
+              <th>Input Feature</th>
+              <th>Rank-1</th>
+              <th>Verif. EER</th>
+              <th>Size</th>
+              <th>Latency (CPU)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Baseline (AC/DCT+SVM)</td>
+              <td>32-dim AC/DCT</td>
+              <td>79.06%</td>
+              <td>13.11%</td>
+              <td>~480 KB</td>
+              <td>1.15 ms</td>
+            </tr>
+            <tr>
+              <td>Method A (LSTM INT8)</td>
+              <td>32-dim AC/DCT seq.</td>
+              <td>49.26%</td>
+              <td>10.01%</td>
+              <td>76.6 KB</td>
+              <td>0.28 ms</td>
+            </tr>
+            <tr>
+              <td>Simple 1D-CNN (INT8)</td>
+              <td>Raw 300-sample beat</td>
+              <td>71.37%</td>
+              <td>7.32%</td>
+              <td>51.9 KB</td>
+              <td>0.15 ms</td>
+            </tr>
+            <tr>
+              <td>1D-ResNet + ArcFace</td>
+              <td>Raw 300-sample beat</td>
+              <td>89.29%</td>
+              <td><strong>3.63%</strong></td>
+              <td>58.1 KB</td>
+              <td>0.54 ms</td>
+            </tr>
+            <tr class="highlight-row">
+              <td><strong>Proposed (Unified INT8)</strong></td>
+              <td>Raw 300-sample beat</td>
+              <td><strong>90.87%</strong></td>
+              <td><strong>4.50%</strong></td>
+              <td><strong>66.3 KB</strong></td>
+              <td><strong>0.62 ms</strong></td>
+            </tr>
+            <tr class="highlight-row">
+              <td><strong>Proposed (Dual-Stream)</strong></td>
+              <td>Raw + 1st Difference</td>
+              <td><strong>91.08%</strong></td>
+              <td><strong>4.93%</strong></td>
+              <td><strong>67.9 KB</strong></td>
+              <td><strong>0.65 ms</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-title">Multi-Beat Decision Window Ablation</div>
+      <div class="block-body">
+        <p>In operational access control, authentication decisions integrate consecutive heartbeats:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Consecutive Beats</th>
+              <th>Acquisition Time (&approx;75 bpm)</th>
+              <th>Unified ResNet-SE</th>
+              <th>Dual-Stream ResNet</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1 Beat</td>
+              <td>0.8 seconds</td>
+              <td>88.76%</td>
+              <td>87.64%</td>
+            </tr>
+            <tr>
+              <td>3 Beats</td>
+              <td>2.4 seconds</td>
+              <td>94.38%</td>
+              <td>95.51%</td>
+            </tr>
+            <tr class="highlight-row">
+              <td><strong>5 Beats</strong></td>
+              <td><strong>~4.0 seconds</strong></td>
+              <td><strong>95.51%</strong></td>
+              <td><strong>96.63%</strong></td>
+            </tr>
+            <tr class="highlight-row">
+              <td><strong>10 Beats</strong></td>
+              <td><strong>~8.0 seconds</strong></td>
+              <td><strong>96.63%</strong></td>
+              <td><strong>97.75%</strong></td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top: 3mm; font-size: 13pt; color: #555;">Within 5 consecutive heartbeats (~4 seconds), identification accuracy matches published academic state-of-the-art benchmarks on ECG-ID while fitting inside 68 KB.</p>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-title">Prototype Replay & Hardware Feasibility</div>
+      <div class="block-body">
+        <ul>
+          <li><strong>Offline Replay Prototype (<code>scripts/demo_replay.py</code>):</strong> Replaying unseen test recordings against enrolled templates achieves a <strong>97.8% Genuine Accept Rate (87/89 subjects)</strong>.</li>
+          <li><strong>Microcontroller Deployability (Raspberry Pi Pico / RP2040):</strong>
+            <ul>
+              <li>Model requires ~15 KB raw weights and ~8 KB activation RAM.</li>
+              <li>Consumes less than <strong>10% of the RP2040's 264 KB SRAM</strong>.</li>
+              <li>Projected inference latency: ~40 ms at 133 MHz clock (< 50 mW power draw).</li>
+            </ul>
+          </li>
+          <li><strong>Honest Limitations:</strong> Tested on a strictly recording-disjoint holdout. Multi-month cross-day validation remains constrained by dataset demographics (20 multi-day vs. 69 same-day subjects).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-title">References & Acknowledgments</div>
+      <div class="block-body" style="font-size: 13pt;">
+        <ol>
+          <li>T. S. Lugovaya, "Biometric human identification based on ECG," Master's thesis, LETI, 2005.</li>
+          <li>ECG-ID Database v1.0.0, PhysioNet, doi:10.13026/C2J01F. ODC-By 1.0.</li>
+          <li>K. N. Plataniotis et al., "ECG biometric recognition without fiducials," <em>Biometrics Symp.</em>, 2006.</li>
+          <li>R. Donida Labati et al., "Deep-ECG: CNNs for ECG biometric recognition," <em>Pattern Recognit. Lett.</em>, 2019.</li>
+          <li>J. Deng et al., "ArcFace: Additive angular margin loss," in <em>Proc. IEEE/CVF CVPR</em>, 2019.</li>
+        </ol>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<footer>
+  <div>Repository: <code>mlee-ecg-biometrics</code> &nbsp;·&nbsp; Branch: <code>orion</code></div>
+  <div>BITS Pilani · Department of Electrical & Electronics Engineering · EEE G513</div>
+</footer>
+
+</body>
+</html>
