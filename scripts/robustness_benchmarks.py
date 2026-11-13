@@ -19,13 +19,13 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from mlee.resnet_se_model import ECG_ResNet_SE
 import numpy as np
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from mlee.resnet_se_model import ECG_ResNet_SE
 
 
 def load_model_and_templates(device):
@@ -426,7 +426,7 @@ def main():
         f.write("# Biometric Robustness & Anti-Overfitting Benchmark Report\n\n")
         f.write(f"**Generated:** {full_results['timestamp']}  \n")
         f.write(f"**Target Model:** `{full_results['model']}`  \n")
-        f.write(f"**Dataset:** ECG-ID Database (89 subjects, 2,288 held-out test beats)  \n")
+        f.write("**Dataset:** ECG-ID Database (89 subjects, 2,288 held-out test beats)  \n")
         f.write(f"**Benchmark Runtime:** {total_time:.2f} seconds  \n\n")
         f.write("---\n\n")
 
