@@ -1,0 +1,22 @@
+{
+  "timestamp_utc": "20261113T112133.269886Z",
+  "git_hash": "b4f9ca01a1056b829248be92d7f8bdd4fc639b51",
+  "git_tree": "494c9d3ef022aef6a6f67254097c352b139ecd39",
+  "dirty": true,
+  "seed": 42,
+  "source_sha256": {
+    "src/mlee/__init__.py": "5c8d6236311fdeb52f2796bfb25628a0f0f4b47dc1235dac7029ffe048017c6d",
+    "src/mlee/arcface.py": "699730487776629f7b180586d8683d867e5da66ecdc209cff1c32244a8fc9a9e",
+    "src/mlee/baseline.py": "4ada91624b6d1c28ba3fc3fde6e543421ef6aa3e3981a95496089e0054bd98f6",
+    "src/mlee/cnn_model.py": "20c80fce20a7f76bc1c1caa662e395accfca0476ed8ec62386183141f613eb58",
+    "src/mlee/dataset.py": "e6bc2560ea5f1b9854411d61bdd59e5ee4768c237a4c31a586b1ec38ac06ce33",
+    "src/mlee/experiments.py": "ab05c29fbf4e55774cc8935ca974654cf727e22747a1590975916634a272c7b4",
+    "src/mlee/lstm_model.py": "6fee80761ba8f9a098ca0dfdeabcccc0f3b1c0bf3c20268d98e875e1d7ba6e9e",
+    "src/mlee/resnet_model.py": "e760d95626ed6a48a7606c6a793aeadb7fcb9ca582656e781622f83bc05eaeea",
+    "src/mlee/resnet_se_model.py": "a68618556821664864f93aedb8cda420e8bddd8a652682231a1981e4daf2c40c",
+    "src/mlee/train.py": "5468ad644b798be3a4aeb2cd7f43c096adaf7887fde54e1c66b7643ee2e01138",
+    "src/mlee/train_hybrid.py": "f65eeb2832729d6a3758eae20b0871d5bc3b70241551c9a60468e44091f8e7f2",
+    "uv.lock": "152a3a9e2954eaf3a39aaf8e31d612823bb014d567a0c799bef9a6d862f542a5"
+  },
+  "status": "complete"
+}

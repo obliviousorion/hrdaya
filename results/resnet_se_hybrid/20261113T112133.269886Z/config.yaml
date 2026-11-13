@@ -1,0 +1,7 @@
+{
+  "experiment": "resnet_se_hybrid",
+  "seed": 42,
+  "data": "data",
+  "method": "resnet_se_hybrid",
+  "protocol": "last_usable_record"
+}

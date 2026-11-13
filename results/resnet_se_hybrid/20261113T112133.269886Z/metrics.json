@@ -1,0 +1,20 @@
+{
+  "status": "measured",
+  "experiment": "resnet_se_hybrid",
+  "model": "ECG_ResNet_SE (Depthwise + SE-Block + Hybrid CE/ArcFace)",
+  "protocol": "last usable record per person held out; recording-disjoint",
+  "dataset": "ECG-ID 1.0.0",
+  "seed": 42,
+  "epochs": 45,
+  "identities": 89,
+  "train_beats": 5587,
+  "test_beats": 2288,
+  "identification_accuracy": 0.9073426573426573,
+  "macro_identity_accuracy": 0.9028524919661836,
+  "verification_eer": 0.0450174825174825,
+  "model_size_fp32_kb": 79.47,
+  "model_size_int8_kb": 66.33,
+  "int8_identification_accuracy": 0.9086538461538461,
+  "int8_verification_eer": 0.0450174825174825,
+  "training_time_s": 73.2
+}

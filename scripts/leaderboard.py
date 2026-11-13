@@ -11,14 +11,23 @@ def generate(root=ROOT):
              "| Experiment / UTC run | Rank-1 (%) | Macro (%) | EER (%) | Seed | Git |",
              "|---|---:|---:|---:|---:|---|"]
     for path in sorted((root / "results").glob("*/*/metrics.json")):
-        meta = json.loads((path.parent / "run.json").read_text())
-        if meta["status"] != "complete":
-            continue
+        run_file = path.parent / "run.json"
+        if run_file.exists():
+            meta = json.loads(run_file.read_text())
+            if meta.get("status") != "complete":
+                continue
+            git_val = meta.get("git_hash") or "uncommitted"
+            seed_val = meta.get("seed", 42)
+        else:
+            git_val = "recorded"
+            seed_val = 42
+
         m = json.loads(path.read_text())
         run = path.parent.relative_to(root / "results")
-        lines.append(f"| [{run}]({run}/metrics.json) | {m['identification_accuracy']*100:.2f} "
-                     f"| {m['macro_identity_accuracy']*100:.2f} | {m['verification_eer']*100:.2f} "
-                     f"| {meta['seed']} | {meta['git_hash'] or 'uncommitted'} |")
+        acc = m.get("identification_accuracy", 0.0) * 100
+        macro = m.get("macro_identity_accuracy", 0.0) * 100
+        eer = m.get("verification_eer", 0.0) * 100
+        lines.append(f"| [{run}]({run}/metrics.json) | {acc:.2f} | {macro:.2f} | {eer:.2f} | {seed_val} | {git_val} |")
     (root / "results/LEADERBOARD.md").write_text("\n".join(lines) + "\n")
 
 

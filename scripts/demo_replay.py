@@ -76,7 +76,7 @@ def replay(person, test_recording_path, templates, model, use_raw, scaler, devic
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--person", default=None, help="e.g. Person_01; omit for all")
-    parser.add_argument("--model", default="cnn", choices=["cnn", "lstm"])
+    parser.add_argument("--model", default="champion", choices=["champion", "cnn", "lstm"])
     args = parser.parse_args()
 
     private = ROOT / "private"
@@ -86,11 +86,14 @@ def main():
     n_classes = len(classes)
     device = torch.device("cpu")
 
-    use_raw = args.model == "cnn"
     scaler = None
 
-    if args.model == "cnn":
-        # Try full INT8 model object first, fall back to FP32
+    if args.model == "champion":
+        use_raw = True
+        model = torch.load(private / "resnet_se_hybrid_int8_model.pt", map_location="cpu", weights_only=False)
+        X_train = tr["X_raw"]
+    elif args.model == "cnn":
+        use_raw = True
         int8_path = private / "cnn_int8_model.pt"
         if int8_path.exists():
             model = torch.load(int8_path, map_location="cpu", weights_only=False)
@@ -99,6 +102,7 @@ def main():
             model.load_state_dict(torch.load(private / "cnn_fp32.pt", map_location="cpu", weights_only=True))
         X_train = tr["X_raw"]
     else:
+        use_raw = False
         int8_path = private / "lstm_int8_model.pt"
         if int8_path.exists():
             model = torch.load(int8_path, map_location="cpu", weights_only=False)
