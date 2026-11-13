@@ -92,6 +92,7 @@ mlee-ecg-biometrics/
 │   │   ├── dhcpserver.c        ← Embedded UDP port 67 DHCP server
 │   │   └── CMakeLists.txt      ← Pico SDK CMake build definition (PICO_BOARD=pico_w)
 │   ├── scripts/                ← Exporter & live verification streaming tools
+│   │   ├── pico_deploy.py          ← Unified build, flash, listen, and test automation CLI
 │   │   ├── export_pico_c_arrays.py ← Fuses BN into Conv1D and generates model_data.h
 │   │   └── run_hardware_test.py    ← Streams test beats to Pico over USB & logs latency
 │   └── results/
@@ -128,7 +129,10 @@ The champion `ECG_ResNet_SE` architecture is fully deployed on physical silicon:
 
 To run the live hardware streaming test over USB:
 ```bash
-uv run python hardware/scripts/run_hardware_test.py --port /dev/ttyACM0 --beats 5
+# Using the all-in-one automation CLI:
+uv run python hardware/scripts/pico_deploy.py stream --subject Person_01  # Single beat test
+uv run python hardware/scripts/pico_deploy.py stream --impostor           # Impostor rejection test
+uv run python hardware/scripts/pico_deploy.py all                         # Full build, flash, and test
 ```
 
 ---
