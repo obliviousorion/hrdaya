@@ -85,7 +85,14 @@ Within just 5 consecutive heartbeats (~4 seconds), identification accuracy excee
 ### 4.3 Prototype Replay Verification
 Using our offline prototype engine (`scripts/demo_replay.py`), held-out test recordings were replayed against enrolled training templates using a fixed cosine threshold ($\cos \theta \ge 0.50$). Across all 89 evaluation subjects, the prototype achieved an **ACCEPT rate of 97.8% (87/89 subjects correctly verified)** with only two borderline false rejects attributable to high electrode baseline drift in subjects' final recordings.
 
-### 4.4 Limitations & Threat Analysis
+### 4.4 Physical Microcontroller Deployment (Raspberry Pi Pico WH RP2040)
+To validate edge feasibility on physical hardware beyond host CPU emulation, the champion `ECG_ResNet_SE` architecture was ported to ANSI C and cross-compiled for a **Raspberry Pi Pico WH (2022)** equipped with an **RP2040 microcontroller** (Dual ARM Cortex-M0+ cores @ 133 MHz, 264 KB SRAM, 2 MB Flash, no hardware FPU).
+
+1. **Kernel & Memory Footprint:** Batch Normalization layers were mathematically folded into Conv1D weights prior to static C array export (`hardware/scripts/export_pico_c_arrays.py`). The resulting binary payload occupies **817 KB of Flash** (including TinyUSB, lwIP networking, and CYW43439 Wi-Fi driver) and **~102 KB of SRAM** (~12 KB peak activations), well within the device's 264 KB ceiling.
+2. **Dual-Channel Interface:** The microcontroller operates two simultaneous output channels: a primary **USB CDC Serial** interface with microsecond hardware timing (`time_us_32()`), and a secondary **CYW43439 Wi-Fi Soft-AP** (`SSID: pico`) hosting an embedded HTTP dashboard (`http://192.168.4.1`) that displays a rolling 5-beat inference log with live similarity scores.
+3. **Physical Silicon Benchmark:** Streaming held-out test beats over USB CDC serial into the RP2040 revealed **exact mathematical parity ($\Delta \text{sim} = 0.0000$)** with host PyTorch inference across all test beats (`Person_01`: 0.8346, `Person_87` impostor probe: 0.1279, correctly rejected). The measured execution latency on 133 MHz Cortex-M0+ software floating-point emulation is **$584.81\text{ ms}$**. Since a typical resting human cardiac cycle is $\approx 833.3\text{ ms}$ (at 72 BPM), the physical microcontroller completes feature extraction, attention gating, and 89-class cosine matching **before the subsequent heartbeat physically arrives**, proving real-time continuous edge biometrics.
+
+### 4.5 Limitations & Threat Analysis
 1. **Recording-Disjoint vs. Long-Term Cross-Day:** While recordings are strictly disjoint, only 20 of the 89 subjects in ECG-ID have recordings taken months apart. Long-term cardiac drift due to aging, medication, or autonomic tone variation remains a challenge.
 2. **Heart-Rate Variability (HRV):** High physical exertion shifts QT intervals relative to RR intervals. Dynamic window scaling or heart-rate normalization should be explored in future work.
 

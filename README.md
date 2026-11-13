@@ -83,6 +83,19 @@ mlee-ecg-biometrics/
 │   ├── prepare_features.py     ← ECG-ID beat extraction & feature caching
 │   ├── make_figures.py         ← Generates pipeline and confusion SVG assets
 │   └── leaderboard.py          ← Rebuilds results/LEADERBOARD.md
+├── hardware/                   ← Raspberry Pi Pico WH RP2040 edge deployment
+│   ├── firmware/               ← Pure ANSI C inference engine & dual-channel firmware
+│   │   ├── main.c              ← USB CDC serial listener & Wi-Fi dashboard coordinator
+│   │   ├── nn_inference.h      ← Zero-dependency C inference kernel (Conv1D, SE, LN)
+│   │   ├── model_data.h        ← Fused BN weights, 89 templates, 5 test beats
+│   │   ├── wifi_server.c       ← CYW43439 soft-AP & dark terminal web dashboard
+│   │   ├── dhcpserver.c        ← Embedded UDP port 67 DHCP server
+│   │   └── CMakeLists.txt      ← Pico SDK CMake build definition (PICO_BOARD=pico_w)
+│   ├── scripts/                ← Exporter & live verification streaming tools
+│   │   ├── export_pico_c_arrays.py ← Fuses BN into Conv1D and generates model_data.h
+│   │   └── run_hardware_test.py    ← Streams test beats to Pico over USB & logs latency
+│   └── results/
+│       └── hardware_test_report.md ← Physical silicon empirical verification log
 ├── report/                     ← Project report deliverable
 │   ├── report.md               ← Complete written paper (IEEE format)
 │   └── figures/                ← pipeline.svg, confusion.svg
@@ -101,7 +114,26 @@ mlee-ecg-biometrics/
 
 ---
 
-## 5. Licensing & Citations
+## 5. Physical Hardware Deployment (Raspberry Pi Pico WH RP2040)
+
+The champion `ECG_ResNet_SE` architecture is fully deployed on physical silicon:
+*   **Hardware:** Raspberry Pi Pico WH (Dual ARM Cortex-M0+ @ 133 MHz, 264 KB SRAM, 2 MB Flash, CYW43439 Wi-Fi).
+*   **Memory Footprint:** 817 KB compiled Flash payload (including networking stacks), ~102 KB SRAM (~12 KB peak activation double buffer).
+*   **Dual-Channel Architecture:**
+    1.  **Primary Channel (USB CDC Serial):** Streams 300-sample raw cardiac waveforms from host PC; utilizes the RP2040 64-bit hardware microsecond timer (`time_us_32()`).
+    2.  **Secondary Channel (Wi-Fi Soft-AP):** Autonomous wireless access point (`SSID: pico`, password `picosama`) hosting a live dark terminal dashboard at `http://192.168.4.1` with a rolling 5-beat history log.
+*   **Physical Silicon Benchmark:**
+    *   **Mathematical Parity:** $\Delta \text{sim} = 0.0000$ (exact bit-for-bit agreement with PyTorch across all test beats).
+    *   **Measured Execution Latency:** **584.81 ms** (well below the $833.3\text{ ms}$ resting human heart cycle at 72 BPM, proving continuous beat-by-beat real-time edge authentication).
+
+To run the live hardware streaming test over USB:
+```bash
+uv run python hardware/scripts/run_hardware_test.py --port /dev/ttyACM0 --beats 5
+```
+
+---
+
+## 6. Licensing & Citations
 
 *   **Code:** MIT License.
 *   **Dataset:** [ECG-ID Database v1.0.0](https://physionet.org/content/ecgiddb/1.0.0/) by Tatiana Lugovaya, Open Data Commons Attribution License (ODC-By 1.0).

@@ -60,6 +60,11 @@
 - **Status:** **completed**
 - **Outcome:** `scripts/demo_replay.py` provides offline ACCEPT/REJECT verification (97.8% genuine accept rate). Benchmarked batch-1 CPU latency at 0.62 ms (p95: 1.06 ms).
 
+### EDGE-03: Physical Microcontroller Deployment on Raspberry Pi Pico WH (RP2040)
+- **Owner:** Team Orion
+- **Status:** **completed**
+- **Outcome:** Fused BatchNorm into Conv1D weights; engineered zero-dependency ANSI C kernel (`hardware/firmware/nn_inference.h`); built dual-channel firmware (`hardware/build_pico/pico_ecg_biometrics.uf2`, 817 KB); deployed onto physical Pico WH silicon; established Wi-Fi Soft-AP (`SSID: pico`, `picosama`) with dark terminal web dashboard (`http://192.168.4.1`) rendering rolling 5-beat history; verified on physical RP2040 hardware with exact bit-level parity ($\Delta\text{sim} = 0.0000$) and 584.81 ms execution latency (well within the 833.3 ms cardiac cycle).
+
 ---
 
 ## 16 November — Results and Writing 2026

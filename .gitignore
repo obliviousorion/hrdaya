@@ -15,6 +15,8 @@ __pycache__/
 *.pem
 *.key
 build/
+hardware/build/
+hardware/build_pico/
 dist/
 *.joblib
 *.pkl
