@@ -234,11 +234,13 @@ static int build_http_response(void) {
 static err_t tcp_sent_cb(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     (void)arg;
     (void)len;
-    tcp_arg(tpcb, NULL);
-    tcp_sent(tpcb, NULL);
-    tcp_recv(tpcb, NULL);
-    tcp_err(tpcb, NULL);
-    tcp_close(tpcb);
+    if (tpcb && tpcb->snd_queuelen == 0) {
+        tcp_arg(tpcb, NULL);
+        tcp_sent(tpcb, NULL);
+        tcp_recv(tpcb, NULL);
+        tcp_err(tpcb, NULL);
+        tcp_close(tpcb);
+    }
     return ERR_OK;
 }
 
@@ -265,8 +267,14 @@ static err_t tcp_recv_cb(void *arg, struct tcp_pcb *tpcb,
     if (resp_len > 0 && resp_len < (int)sizeof(s_resp_buf)) {
         tcp_sent(tpcb, tcp_sent_cb);
         tcp_err(tpcb, tcp_err_cb);
-        tcp_write(tpcb, s_resp_buf, (u16_t)resp_len, TCP_WRITE_FLAG_COPY);
-        tcp_output(tpcb);
+        err_t werr = tcp_write(tpcb, s_resp_buf, (u16_t)resp_len, 0);
+        if (werr == ERR_OK) {
+            tcp_output(tpcb);
+            printf("[wifi] HTTP sent %d bytes\n", resp_len);
+        } else {
+            printf("[wifi] tcp_write err: %d\n", (int)werr);
+            tcp_close(tpcb);
+        }
     } else {
         tcp_close(tpcb);
     }

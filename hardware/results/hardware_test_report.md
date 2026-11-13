@@ -1,6 +1,6 @@
 # Hardware Test Report — Raspberry Pi Pico WH
 
-**Timestamp:** 2026-11-13T18:09:24Z  
+**Timestamp:** 2026-11-13T18:17:01Z  
 **Port:** /dev/ttyACM0  
 **Beats tested:** 1  
 **Model:** `ECG_ResNet_SE` (14,867 params, BN-fused float32)  
@@ -11,7 +11,7 @@
 
 | # | Identity | HW Sim | Ref Sim | Δsim | Latency (ms) | Decision |
 |---|---|---|---|---|---|---|
-| 1 | `Impostor` | 0.3609 | 0.3609 | 0.0000 | 583.36 | REJECT |
+| 1 | `Person_01` | 0.8346 | 0.8346 | 0.0000 | 583.05 | ACCEPT |
 
 ---
 
@@ -19,7 +19,7 @@
 
 | Metric | Value | Target | Status |
 |---|---|---|---|
-| Mean latency | 583.36 ms | ≤ 60 ms | FAIL |
-| Max latency  | 583.36 ms  | ≤ 60 ms | FAIL |
+| Mean latency | 583.05 ms | ≤ 60 ms | FAIL |
+| Max latency  | 583.05 ms  | ≤ 60 ms | FAIL |
 | Sim accuracy (Δ < 0.005) | 1/1 | 1/1 | PASS |
 | ACCEPT rate | 1/1 | — | — |
