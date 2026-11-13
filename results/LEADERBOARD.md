@@ -14,4 +14,5 @@ Recording-disjoint baseline is not a cross-day result. Test EER is descriptive.
 | [lstm/20261113T104736.704417Z](lstm/20261113T104736.704417Z/metrics.json) | 49.17 | 49.72 | 10.01 | 42 | recorded |
 | [resnet1d_arcface/20261113T110637.788271Z](resnet1d_arcface/20261113T110637.788271Z/metrics.json) | 0.00 | 0.00 | 0.00 | 42 | recorded |
 | [resnet1d_augmented/20261113T110530.293728Z](resnet1d_augmented/20261113T110530.293728Z/metrics.json) | 0.00 | 0.00 | 0.00 | 42 | recorded |
+| [resnet_se_dualstream/20261113T144014.587544Z](resnet_se_dualstream/20261113T144014.587544Z/metrics.json) | 91.13 | 90.94 | 4.93 | 42 | d0dabb53696f59b2302cdd9e02881cb6cd398477 |
 | [resnet_se_hybrid/20261113T112133.269886Z](resnet_se_hybrid/20261113T112133.269886Z/metrics.json) | 90.73 | 90.29 | 4.50 | 42 | b4f9ca01a1056b829248be92d7f8bdd4fc639b51 |

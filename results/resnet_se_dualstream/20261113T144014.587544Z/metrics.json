@@ -1,0 +1,23 @@
+{
+  "status": "measured",
+  "experiment": "resnet_se_dualstream",
+  "model": "ECG_ResNet_DualStream (2-Channel [x, dx] + LabelSmoothing + ArcFace)",
+  "protocol": "last usable record per person held out; recording-disjoint",
+  "dataset": "ECG-ID 1.0.0",
+  "seed": 42,
+  "epochs": 50,
+  "identities": 89,
+  "train_beats": 5587,
+  "test_beats": 2288,
+  "identification_accuracy": 0.9112762237762237,
+  "macro_identity_accuracy": 0.9093529933312524,
+  "verification_eer": 0.049288779402415765,
+  "model_size_fp32_kb": 81.04,
+  "model_size_int8_kb": 67.9,
+  "int8_identification_accuracy": 0.9108391608391608,
+  "int8_verification_eer": 0.0493136125238398,
+  "training_time_s": 101.4,
+  "person_87_accuracy": 0.0,
+  "person_70_accuracy": 0.0,
+  "person_67_accuracy": 0.6666666666666666
+}

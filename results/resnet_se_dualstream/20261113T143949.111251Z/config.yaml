@@ -1,0 +1,7 @@
+{
+  "experiment": "resnet_se_dualstream",
+  "seed": 42,
+  "data": "data",
+  "method": "resnet_se_dualstream",
+  "protocol": "last_usable_record"
+}
