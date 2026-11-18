@@ -44,6 +44,7 @@ target_link_libraries(pico_ecg_biometrics
     pico_multicore
     hardware_vreg
     hardware_clocks
+    hardware_adc
     pico_time
     hardware_gpio
     pico_cyw43_arch_lwip_threadsafe_background

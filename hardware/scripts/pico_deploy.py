@@ -9,6 +9,7 @@ Usage:
   uv run python hardware/scripts/pico_deploy.py stream --subject Person_01  # Stream 1 beat
   uv run python hardware/scripts/pico_deploy.py stream --impostor           # Test impostor rejection
   uv run python hardware/scripts/pico_deploy.py listen            # Monitor live serial logs
+  uv run python hardware/scripts/pico_deploy.py monitor           # Launch live ECG oscilloscope UI
 """
 
 import argparse
@@ -144,6 +145,13 @@ def cmd_listen(duration_s=30):
         log_err(f"Serial read error: {e}")
 
 
+def cmd_monitor(http_port=8080):
+    """Launch the zero-dependency live ECG oscilloscope & control UI."""
+    script_path = ROOT / "hardware" / "scripts" / "live_ecg_monitor.py"
+    cmd = f"uv run python {script_path} --port {SERIAL_PORT} --http-port {http_port}"
+    run_cmd(cmd, check=False)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Pico WH Automated Build, Flash & Test Utility"
@@ -162,6 +170,9 @@ def main():
 
     listen_parser = subparsers.add_parser("listen", help="Monitor live serial logs")
     listen_parser.add_argument("--time", type=int, default=30, help="Listen duration in seconds")
+
+    mon_parser = subparsers.add_parser("monitor", help="Launch live ECG oscilloscope web UI")
+    mon_parser.add_argument("--http-port", type=int, default=8080, help="Local UI port")
 
     args, unknown = parser.parse_known_args()
 
@@ -188,6 +199,8 @@ def main():
         cmd_stream(stream_args)
     elif args.command == "listen":
         cmd_listen(duration_s=args.time)
+    elif args.command == "monitor":
+        cmd_monitor(http_port=args.http_port)
     else:
         parser.print_help()
 
