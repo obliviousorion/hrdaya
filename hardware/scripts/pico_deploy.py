@@ -69,10 +69,21 @@ def find_pico_mount():
         if c.exists() and (c / "INFO_UF2.TXT").exists():
             return c
 
-    # Try mounting /dev/sda1 via udisksctl with retries
-    for attempt in range(4):
-        if Path("/dev/sda1").exists() or Path("/dev/sda").exists():
-            subprocess.run("udisksctl mount -b /dev/sda1", shell=True, capture_output=True)
+    # Dynamically discover RPI-RP2 partition via lsblk (handles sda1, sdb1, sdc1, etc.)
+    for _ in range(4):
+        res = subprocess.run(
+            "lsblk -rnpo NAME,LABEL", shell=True, capture_output=True, text=True
+        )
+        dev = None
+        for line in res.stdout.splitlines():
+            parts = line.split(None, 1)
+            if len(parts) == 2 and parts[1].strip() == "RPI-RP2":
+                dev = parts[0].strip()
+                break
+        if dev is None and Path("/dev/sda1").exists():
+            dev = "/dev/sda1"
+        if dev:
+            subprocess.run(f"udisksctl mount -b {dev}", shell=True, capture_output=True)
             time.sleep(1.0)
             for c in candidates:
                 if c.exists() and (c / "INFO_UF2.TXT").exists():

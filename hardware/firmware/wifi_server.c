@@ -2,12 +2,15 @@
  * wifi_server.c — CYW43439 Wi-Fi AP + minimalist HTTP dashboard & action server.
  *
  * Routes:
- *   GET /          -> Dark-terminal dashboard (auto-refreshes every 2s)
- *   GET /enroll    -> Arm 5-beat zero-shot live enrollment (303 -> /)
- *   GET /auth      -> Arm 5-beat live authentication (303 -> /)
- *   GET /cont      -> Toggle continuous live authentication (303 -> /)
- *   GET /standby   -> Return to live standby/preview (303 -> /)
- *   GET /clear     -> Clear live enrolled SRAM templates (303 -> /)
+ *   GET /               -> Dark-terminal dashboard (auto-refreshes every 2s)
+ *   GET /enroll         -> Arm 5-beat zero-shot live enrollment (303 -> /)
+ *   GET /auth           -> Arm 5-beat live authentication (303 -> /)
+ *   GET /cont           -> Toggle continuous live authentication (303 -> /)
+ *   GET /standby        -> Return to live standby/preview (303 -> /)
+ *   GET /clear          -> Clear all live enrolled SRAM templates (303 -> /)
+ *   GET /unenroll?id=K  -> Unenroll single live user slot K (303 -> /)
+ *   GET /scope          -> Toggle gallery scope: LIVE ONLY vs ALL 89+N (303 -> /)
+ *   GET /thresh         -> Cycle threshold: 0.50 -> 0.60 -> 0.68 -> 0.50 (303 -> /)
  *
  * 100% STATIC BUFFERS (zero large stack allocations, zero malloc).
  */
@@ -34,10 +37,11 @@
 #define WIFI_PASSWORD "picosama"
 #endif
 
-#define AP_IP_ADDR    "192.168.4.1"
-#define AP_MASK       "255.255.255.0"
-#define HTTP_PORT     80
-#define HISTORY_LEN   5
+#define AP_IP_ADDR       "192.168.4.1"
+#define AP_MASK          "255.255.255.0"
+#define HTTP_PORT        80
+#define HISTORY_LEN      5
+#define MAX_UI_USERS     8
 
 typedef struct {
     char     person_name[16];
@@ -64,6 +68,8 @@ typedef struct {
     int   progress_cur;
     int   progress_tot;
     char  vote_str[40];
+    bool  live_only_scope;
+    float threshold;
 } system_status_t;
 
 static volatile infer_result_t g_result = {
@@ -76,26 +82,34 @@ static volatile infer_result_t g_result = {
 };
 
 static volatile system_status_t g_status = {
-    .mode_str     = "STANDBY",
-    .sensor_str   = "LEADS OFF",
-    .bpm          = 0.0f,
-    .live_users   = 0,
-    .progress_cur = 0,
-    .progress_tot = 0,
-    .vote_str     = "---",
+    .mode_str        = "STANDBY",
+    .sensor_str      = "LEADS OFF",
+    .bpm             = 0.0f,
+    .live_users      = 0,
+    .progress_cur    = 0,
+    .progress_tot    = 0,
+    .vote_str        = "---",
+    .live_only_scope = false,
+    .threshold       = 0.50f,
 };
 
 static volatile history_entry_t g_history[HISTORY_LEN];
 static volatile int g_history_count = 0;
+
+static char g_user_names[MAX_UI_USERS][16];
+static volatile int g_user_count = 0;
+
 static volatile wifi_action_t g_pending_action = WIFI_ACT_NONE;
+static volatile int           g_pending_arg    = 0;
 
 static dhcp_server_t s_dhcp;
 static struct tcp_pcb *s_server_pcb = NULL;
 
 /* Static BSS buffers (prevents stack overflow on 2 KB Cortex-M0+ stack) */
-static char s_html_buf[5000];
+static char s_html_buf[6000];
 static char s_rows_buf[1200];
-static char s_resp_buf[5600];
+static char s_users_buf[768];
+static char s_resp_buf[6600];
 
 static const char HTTP_REDIRECT_ROOT[] =
     "HTTP/1.1 303 See Other\r\n"
@@ -123,14 +137,22 @@ static int build_http_response(void) {
     for (int i = 0; i < h_count; ++i) {
         memcpy(&h[i], (const void *)&g_history[i], sizeof(history_entry_t));
     }
+
+    char unames[MAX_UI_USERS][16];
+    int u_count = g_user_count;
+    if (u_count > MAX_UI_USERS) u_count = MAX_UI_USERS;
+    for (int i = 0; i < u_count; ++i) {
+        memcpy(unames[i], g_user_names[i], 16);
+    }
     cyw43_arch_lwip_end();
 
     float latency_ms = (float)r.latency_us / 1000.0f;
-    const char *decision_str  = r.has_result ? (r.accepted ? "ACCEPT" : "REJECT") : "STANDBY";
-    const char *decision_col  = r.has_result ? (r.accepted ? "#5af78e" : "#f97583") : "#888";
-    const char *sensor_col    = (strcmp(st.sensor_str, "SIGNAL READY") == 0) ? "#5af78e"
-                              : (strcmp(st.sensor_str, "SETTLING") == 0)     ? "#f1fa8c"
-                                                                              : "#f97583";
+    const char *decision_str = r.has_result ? (r.accepted ? "ACCEPT" : "REJECT") : "STANDBY";
+    const char *decision_col = r.has_result ? (r.accepted ? "#5af78e" : "#f97583") : "#888";
+    const char *sensor_col   = (strcmp(st.sensor_str, "SIGNAL READY") == 0) ? "#5af78e"
+                             : (strcmp(st.sensor_str, "SETTLING") == 0)     ? "#f1fa8c"
+                                                                             : "#f97583";
+    const char *scope_str    = st.live_only_scope ? "LIVE ONLY" : "ALL (89+N)";
 
     char mode_disp[36];
     if (st.progress_tot > 0) {
@@ -146,6 +168,20 @@ static int build_http_response(void) {
         snprintf(sensor_disp, sizeof(sensor_disp), "%s", st.sensor_str);
     }
 
+    /* Build enrolled live user chips with selective unenroll links */
+    s_users_buf[0] = '\0';
+    int uoff = 0;
+    for (int i = 0; i < u_count && uoff < (int)sizeof(s_users_buf) - 96; ++i) {
+        uoff += snprintf(s_users_buf + uoff, sizeof(s_users_buf) - uoff,
+            "<span class=\"uchip\">%s <a href=\"/unenroll?id=%d\">[x]</a></span>",
+            unames[i], i);
+    }
+    if (u_count == 0) {
+        snprintf(s_users_buf, sizeof(s_users_buf),
+            "<span style=\"color:#444;font-size:10px\">NONE ENROLLED (89 DB READY)</span>");
+    }
+
+    /* Build rolling history rows */
     s_rows_buf[0] = '\0';
     int offset = 0;
     for (int i = 0; i < h_count && offset < (int)sizeof(s_rows_buf) - 180; ++i) {
@@ -173,7 +209,7 @@ static int build_http_response(void) {
         "*{margin:0;padding:0;box-sizing:border-box}"
         "body{background:#0a0a0a;color:#c8c8c8;font-family:'Courier New',monospace;"
         "display:flex;align-items:center;justify-content:center;min-height:100vh;padding:10px}"
-        ".box{width:100%%;max-width:420px;border:1px solid #2a2a2a;background:#111}"
+        ".box{width:100%%;max-width:430px;border:1px solid #2a2a2a;background:#111}"
         ".hdr{background:#161616;border-bottom:1px solid #2a2a2a;padding:8px 12px;"
         "font-size:10px;color:#777;letter-spacing:2px;display:flex;justify-content:space-between}"
         ".body{padding:12px}"
@@ -181,13 +217,14 @@ static int build_http_response(void) {
         ".lbl{color:#666;font-size:10px;letter-spacing:1px}"
         ".val{color:#ddd;font-size:11px}"
         ".dec{font-size:13px;font-weight:bold;letter-spacing:2px;color:%s}"
-        ".btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0 6px}"
+        ".btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0 6px}"
         ".btn{display:block;text-align:center;padding:7px 4px;font-size:10px;letter-spacing:1px;"
         "color:#ddd;background:#181818;border:1px solid #333;text-decoration:none}"
-        ".btn:active{background:#2a2a2a}"
-        ".b1{border-color:#5af78e;color:#5af78e}"
-        ".b2{border-color:#8be9fd;color:#8be9fd}"
-        ".b3{border-color:#f97583;color:#f97583}"
+        ".b1{border-color:#5af78e;color:#5af78e}.b2{border-color:#8be9fd;color:#8be9fd}"
+        ".b3{border-color:#f97583;color:#f97583}.b4{border-color:#f1fa8c;color:#f1fa8c}"
+        ".ulist{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}"
+        ".uchip{font-size:10px;padding:3px 6px;background:#161616;border:1px solid #2e2e2e;color:#ddd}"
+        ".uchip a{color:#f97583;text-decoration:none;font-weight:bold}"
         ".sub{margin-top:8px;padding:4px 0 2px;font-size:9px;color:#555;letter-spacing:1px;border-top:1px solid #1f1f1f}"
         ".htbl{width:100%%;border-collapse:collapse;font-size:10px;margin-top:2px}"
         ".htbl th{text-align:left;color:#555;font-size:8px;padding:3px 2px;border-bottom:1px solid #1a1a1a}"
@@ -198,8 +235,9 @@ static int build_http_response(void) {
         "<div class=\"body\">"
         "<div class=\"row\"><span class=\"lbl\">SENSOR</span><span class=\"val\" style=\"color:%s\">%s</span></div>"
         "<div class=\"row\"><span class=\"lbl\">MODE</span><span class=\"val\">%s</span></div>"
+        "<div class=\"row\"><span class=\"lbl\">SCOPE / THR</span><span class=\"val\">%s // %.2f</span></div>"
         "<div class=\"row\"><span class=\"lbl\">IDENTITY</span><span class=\"val\">%s</span></div>"
-        "<div class=\"row\"><span class=\"lbl\">SIMILARITY</span><span class=\"val\">%.4f / 0.5000</span></div>"
+        "<div class=\"row\"><span class=\"lbl\">SIMILARITY</span><span class=\"val\">%.4f / %.2f</span></div>"
         "<div class=\"row\"><span class=\"lbl\">5-BEAT VOTE</span><span class=\"val\">%s</span></div>"
         "<div class=\"row\"><span class=\"lbl\">LATENCY</span><span class=\"val\">%.1f ms (#%lu)</span></div>"
         "<div class=\"row\" style=\"border:none;padding-top:6px\"><span class=\"lbl\">DECISION</span><span class=\"dec\">[ %s ]</span></div>"
@@ -208,8 +246,12 @@ static int build_http_response(void) {
         "<a class=\"btn b2\" href=\"/auth\">[ AUTH 5B ]</a>"
         "<a class=\"btn\" href=\"/cont\">[ CONTINUOUS ]</a>"
         "<a class=\"btn\" href=\"/standby\">[ STANDBY ]</a>"
+        "<a class=\"btn b4\" href=\"/scope\">[ SCOPE: %s ]</a>"
+        "<a class=\"btn b4\" href=\"/thresh\">[ THR: %.2f ]</a>"
         "</div>"
-        "<a class=\"btn b3\" style=\"margin-bottom:4px\" href=\"/clear\">[ CLEAR LIVE USERS ]</a>"
+        "<div class=\"sub\">[ ENROLLED LIVE USERS (TAP x TO UNENROLL) ]</div>"
+        "<div class=\"ulist\">%s</div>"
+        "<a class=\"btn b3\" style=\"margin-top:4px\" href=\"/clear\">[ CLEAR ALL LIVE USERS ]</a>"
         "<div class=\"sub\">[ RECENT INFERENCE LOG ]</div>"
         "<table class=\"htbl\"><thead><tr><th>BEAT</th><th>MATCH</th><th>SIM</th><th>TIME</th><th>STATUS</th></tr></thead>"
         "<tbody>%s</tbody></table>"
@@ -219,11 +261,15 @@ static int build_http_response(void) {
         st.live_users,
         sensor_col, sensor_disp,
         mode_disp,
+        scope_str, (double)st.threshold,
         r.person_name,
-        (double)r.similarity,
+        (double)r.similarity, (double)st.threshold,
         st.vote_str,
         (double)latency_ms, (unsigned long)r.beat_count,
         decision_str,
+        scope_str,
+        (double)st.threshold,
+        s_users_buf,
         s_rows_buf
     );
 
@@ -294,14 +340,23 @@ static err_t tcp_recv_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t 
     }
 
     wifi_action_t act = WIFI_ACT_NONE;
-    if (strncmp(req, "GET /enroll", 11) == 0)       act = WIFI_ACT_ENROLL;
-    else if (strncmp(req, "GET /auth", 9) == 0)     act = WIFI_ACT_AUTH;
-    else if (strncmp(req, "GET /cont", 9) == 0)     act = WIFI_ACT_CONT;
-    else if (strncmp(req, "GET /standby", 12) == 0) act = WIFI_ACT_STANDBY;
-    else if (strncmp(req, "GET /clear", 10) == 0)   act = WIFI_ACT_CLEAR;
+    int act_arg = 0;
+
+    if (strncmp(req, "GET /enroll", 11) == 0)         act = WIFI_ACT_ENROLL;
+    else if (strncmp(req, "GET /auth", 9) == 0)      act = WIFI_ACT_AUTH;
+    else if (strncmp(req, "GET /cont", 9) == 0)      act = WIFI_ACT_CONT;
+    else if (strncmp(req, "GET /standby", 12) == 0)  act = WIFI_ACT_STANDBY;
+    else if (strncmp(req, "GET /clear", 10) == 0)    act = WIFI_ACT_CLEAR;
+    else if (strncmp(req, "GET /scope", 10) == 0)    act = WIFI_ACT_SCOPE_TOGGLE;
+    else if (strncmp(req, "GET /thresh", 11) == 0)   act = WIFI_ACT_THRESH_CYCLE;
+    else if (strncmp(req, "GET /unenroll?id=", 17) == 0) {
+        act = WIFI_ACT_UNENROLL;
+        act_arg = atoi(req + 17);
+    }
 
     if (act != WIFI_ACT_NONE) {
         g_pending_action = act;
+        g_pending_arg = act_arg;
         send_static_response(tpcb, HTTP_REDIRECT_ROOT, (int)sizeof(HTTP_REDIRECT_ROOT) - 1);
         return ERR_OK;
     }
@@ -393,7 +448,9 @@ void wifi_server_update_status(const char *mode_str,
                                int         live_users,
                                int         progress_cur,
                                int         progress_tot,
-                               const char *vote_str) {
+                               const char *vote_str,
+                               bool        live_only_scope,
+                               float       threshold) {
     cyw43_arch_lwip_begin();
     if (mode_str) {
         strncpy((char *)g_status.mode_str, mode_str, sizeof(g_status.mode_str) - 1);
@@ -403,10 +460,12 @@ void wifi_server_update_status(const char *mode_str,
         strncpy((char *)g_status.sensor_str, sensor_str, sizeof(g_status.sensor_str) - 1);
         g_status.sensor_str[sizeof(g_status.sensor_str) - 1] = '\0';
     }
-    g_status.bpm          = bpm;
-    g_status.live_users   = live_users;
-    g_status.progress_cur = progress_cur;
-    g_status.progress_tot = progress_tot;
+    g_status.bpm             = bpm;
+    g_status.live_users      = live_users;
+    g_status.progress_cur    = progress_cur;
+    g_status.progress_tot    = progress_tot;
+    g_status.live_only_scope = live_only_scope;
+    g_status.threshold       = threshold;
     if (vote_str) {
         strncpy((char *)g_status.vote_str, vote_str, sizeof(g_status.vote_str) - 1);
         g_status.vote_str[sizeof(g_status.vote_str) - 1] = '\0';
@@ -414,11 +473,26 @@ void wifi_server_update_status(const char *mode_str,
     cyw43_arch_lwip_end();
 }
 
-wifi_action_t wifi_server_take_action(void) {
+void wifi_server_update_users(const char names[][16], int count) {
+    if (count < 0) count = 0;
+    if (count > MAX_UI_USERS) count = MAX_UI_USERS;
+    cyw43_arch_lwip_begin();
+    for (int i = 0; i < count; ++i) {
+        strncpy(g_user_names[i], names[i], 15);
+        g_user_names[i][15] = '\0';
+    }
+    g_user_count = count;
+    cyw43_arch_lwip_end();
+}
+
+wifi_action_t wifi_server_take_action(int *arg_out) {
     cyw43_arch_lwip_begin();
     wifi_action_t act = g_pending_action;
+    int arg = g_pending_arg;
     g_pending_action = WIFI_ACT_NONE;
+    g_pending_arg = 0;
     cyw43_arch_lwip_end();
+    if (arg_out) *arg_out = arg;
     return act;
 }
 
