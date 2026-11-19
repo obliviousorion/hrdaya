@@ -23,6 +23,7 @@ Usage:
 import argparse
 import collections
 from datetime import datetime
+import glob
 import json
 import re
 import sys
@@ -1012,22 +1013,30 @@ def make_handler(bridge: PicoBridge):
     return Handler
 
 
+def detect_serial_port() -> str:
+    if Path("/dev/ttyACM0").exists():
+        return "/dev/ttyACM0"
+    ports = sorted(glob.glob("/dev/ttyACM*"))
+    return ports[0] if ports else "/dev/ttyACM0"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Live ECG Edge Monitor (Pico WH)")
-    parser.add_argument("--port", default="/dev/ttyACM0", help="Pico USB serial port")
+    parser.add_argument("--port", default=None, help="Pico USB serial port (auto-detected if omitted)")
     parser.add_argument("--baud", type=int, default=115200, help="Serial baud rate")
     parser.add_argument("--http-port", type=int, default=8080, help="Local web UI port")
     args = parser.parse_args()
+    port = args.port or detect_serial_port()
 
-    bridge = PicoBridge(args.port, args.baud)
+    bridge = PicoBridge(port, args.baud)
     try:
         bridge.start()
     except Exception as exc:
-        print(f"ERROR: Could not open {args.port}: {exc}")
+        print(f"ERROR: Could not open {port}: {exc}")
         sys.exit(1)
 
     server = ThreadingHTTPServer(("127.0.0.1", args.http_port), make_handler(bridge))
-    print(f"[monitor] Connected to Pico WH on {args.port}")
+    print(f"[monitor] Connected to Pico WH on {port}")
     print(f"[monitor] Open Live Oscilloscope -> http://localhost:{args.http_port}")
     print("[monitor] Press Ctrl+C to stop (auto-disables telemetry cleanly).")
     try:

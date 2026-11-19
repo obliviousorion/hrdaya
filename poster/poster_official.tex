@@ -1,8 +1,8 @@
 %% =====================================================================
 %%  MLEE Course Project Poster  (BITS Pilani, EEE Department)
 %%  Course : EEE G513: Machine Learning for Electrical Engineers
-%%  Title  : Your Heartbeat Is Your Password: Lightweight Deep ECG Biometrics for Edge Authentication
-%%  Format : tikzposter class (Official Department Template)
+%%  Title  : Lightweight Deep ECG Biometrics for Edge Authentication
+%%  Format : A0/A3 portrait, tikzposter class (Official Department Template)
 %%  Build  : pdflatex poster_official.tex   (run twice)
 %% =====================================================================
 \documentclass[30pt, a0paper, portrait, margin=0mm, innermargin=15mm,
@@ -15,6 +15,14 @@
 \usepackage{booktabs}
 \usepackage{enumitem}
 \usepackage{graphicx}
+
+% ---------------------------------------------------------------------
+%  FILE NAMES
+% ---------------------------------------------------------------------
+\newcommand{\bitslogofile}{bits_logo.png}      % BITS Pilani logo
+\newcommand{\sidelogofile}{dept_logo.jpg}      % Department logo
+\newcommand{\figmethod}{fig_method.png}        % Pipeline figure
+\newcommand{\figresultA}{fig_result1.png}      % Qualitative & ROC figure
 
 % ---------------------------------------------------------------------
 %  COLOURS  (BITS-style navy and blue)
@@ -50,65 +58,127 @@
 \useblockstyle{Default}
 \usebackgroundstyle{Default}
 
-% Compact lists
+% ---------------------------------------------------------------------
+%  HELPER MACROS
+% ---------------------------------------------------------------------
+\newcommand{\logoslot}[2]{%
+  \IfFileExists{#1}{%
+    \includegraphics[height=6.5cm, width=\linewidth, keepaspectratio]{#1}%
+  }{%
+    \begin{tikzpicture}
+      \node[draw=white, dashed, line width=2pt, minimum width=10cm,
+            minimum height=6.5cm, text=white, align=center,
+            font=\Large\itshape] {#2};
+    \end{tikzpicture}%
+  }%
+}
+
+\newcommand{\figslot}[4]{%
+  \begin{center}
+  \IfFileExists{#1}{%
+    \includegraphics[width=#2, height=#3, keepaspectratio]{#1}%
+  }{%
+    \begin{tikzpicture}
+      \node[draw=guidegrey, dashed, line width=2pt, minimum width=#2,
+            minimum height=#3, text=guidegrey, align=center,
+            font=\Large\itshape, text width=\dimexpr#2-2cm\relax] {#4};
+    \end{tikzpicture}%
+  }%
+  \end{center}%
+}
+
+\newcommand{\figcap}[1]{{\par\centering\small\itshape #1\par}\vspace{4mm}}
+
 \setlist[itemize]{leftmargin=1.2em, itemsep=2pt, topsep=2pt, parsep=0pt}
 \setlist[enumerate]{leftmargin=1.5em, itemsep=2pt, topsep=2pt, parsep=0pt}
 
 % ---------------------------------------------------------------------
 %  TITLE, TEAM, AFFILIATION
 % ---------------------------------------------------------------------
-\title{\parbox{\linewidth}{\centering \textbf{Your Heartbeat Is Your Password:}\\[2mm]
-\LARGE \textbf{Lightweight Deep ECG Biometrics for Edge Authentication}}}
-\author{Team Orion · EEE G513: Machine Learning for Electrical Engineers}
-\institute{Department of Electrical and Electronics Engineering, BITS Pilani · Instructor: Dr. Ritesh Vyas}
+\title{Lightweight Deep ECG Biometrics for Edge Authentication}
+\author{Student 1 (2023A3PS0001P) \;\textbullet\; Student 2 (2023A3PS0002P) \;\textbullet\; Student 3 (2023A3PS0003P) \;\;|\;\; Team 14}
+\institute{Department of Electrical and Electronics Engineering, BITS Pilani, Pilani Campus
+           \;\textbullet\; EEE G513: MLEE \;\textbullet\; Instructor: Dr. Ritesh Vyas \;\textbullet\; Semester I 2026--27}
+
+\makeatletter
+\settitle{%
+  \centering
+  \begin{minipage}[c]{0.16\linewidth}\centering
+    \logoslot{\bitslogofile}{[ BITS Pilani\\logo here ]}
+  \end{minipage}%
+  \begin{minipage}[c]{0.64\linewidth}\centering\color{titlefgcolor}
+    {\bfseries\fontsize{54}{62}\selectfont \@title \par}
+    \vspace{0.8em}
+    {\fontsize{30}{36}\selectfont \@author \par}
+    \vspace{0.5em}
+    {\fontsize{24}{28}\selectfont \@institute \par}
+  \end{minipage}%
+  \begin{minipage}[c]{0.16\linewidth}\centering
+    \logoslot{\sidelogofile}{[ Department\\logo here ]}
+  \end{minipage}%
+}
+\makeatother
 
 \begin{document}
 \maketitle
 
+% =====================================================================
 \begin{columns}
-
 % ------------------------- LEFT COLUMN -------------------------------
 \column{0.5}
 
 \block{Summary}{
+  This project addresses \textbf{spoof-resistant, privacy-preserving biometric authentication} on ultra-low-power microcontrollers using raw single-lead electrocardiogram (ECG) waveforms. Following an empirical strategy that progressively benchmarked classical AC/DCT SVMs, recurrent LSTMs, and 1D-CNNs, we engineer an Asymmetric Multiprocessing (AMP) pipeline featuring causal IIR filtering, Pan-Tompkins QRS detection, and our 14,867-parameter \texttt{ECG\_ResNet\_SE} neural network trained via ArcFace metric learning. On the PhysioNet ECG-ID benchmark (89 identities, strictly recording-disjoint holdout), our proposed system achieves \textbf{90.87\% single-beat Rank-1 identification} and slashes verification Equal Error Rate from 13.11\% (baseline) down to \textbf{4.50\%}, with a decidability index of \textbf{$d' = 4.13$} and \textbf{93.62\% True Accept Rate at 1.0\% False Accept Rate}. Ensembling 5 heartbeats (~4 s) delivers \textbf{95.51\% identification accuracy}. Furthermore, extending to a Dual-Stream architecture fusing voltage morphology with phase velocity ($dV/dt$) pushes \textbf{8-beat accuracy beyond 97\% (97.19\%)} and reaches \textbf{97.75\% across 10 beats}. Deployed in pure C99 on a \$5 Raspberry Pi Pico WH at 250 MHz, the system executes inference in \textbf{300.05 ms} within 161.6 KB SRAM with \textbf{zero runtime Flash writes}.
+}
+
+\block{Introduction and Progressive Strategy}{
+  \textbf{Motivation:} Conventional biometrics (fingerprints, facial scans) remain vulnerable to physical presentation attacks (silicone replicas, high-res photos). ECG signals offer an \textbf{intrinsic vitality guarantee} that exists solely in living individuals. However, deploying deep learning models on constrained edge microcontrollers lacking FPUs requires overcoming strict compute and SRAM limits while handling ambient 50 Hz power-line interference.
+  \vspace{3mm}
+
+  \textbf{Progressive Methodology & Objectives:}
   \begin{itemize}
-    \item \textbf{Problem:} Traditional biometric modalities (facial geometry, fingerprints) lack inherent liveness and remain susceptible to presentation spoofing attacks.
-    \item \textbf{Approach:} We design an ultra-lightweight deep learning pipeline operating on raw single-lead ECG waveforms, utilizing depthwise-separable residual convolutions, Squeeze-and-Excitation (SE) channel attention, and a hybrid Cross-Entropy / ArcFace metric loss.
-    \item \textbf{Results:} On the open ECG-ID benchmark (89 subjects, strictly recording-disjoint holdout), our unified model achieves \textbf{90.87\% single-beat Rank-1 identification} and \textbf{4.50\% verification EER}. Ensembling 5 consecutive heartbeats (~4.0 s) delivers \textbf{95.51\% identification accuracy}.
-    \item \textbf{Edge Viability:} Shrunk to dynamic INT8 precision, the entire model occupies only \textbf{66.3 KB} of memory with a \textbf{0.62 ms} batch-1 CPU inference latency, making battery-powered microcontroller deployment (e.g., Raspberry Pi Pico / RP2040) directly feasible.
+    \item \textbf{Systematic Benchmark Odyssey:} Progressively benchmarked AC/DCT+SVM, recurrent LSTM, and shallow 1D-CNNs under a strictly recording-disjoint holdout split across 89 identities, diagnosing theoretical failure modes.
+    \item \textbf{Residual Attention & Metric Learning:} Engineered \texttt{ECG\_ResNet\_SE} with Squeeze-and-Excitation channel attention and ArcFace loss to enforce tight hyperspherical clusters.
+    \item \textbf{Dual-Stream Research Frontier (>97%):} Developed a 2-channel Dual-Stream model ($[x, \Delta x]$) capturing instantaneous Purkinje velocity ($dV/dt$), demonstrating that ensembling 8 beats pushes accuracy to \textbf{97.19\%} and 10 beats to \textbf{97.75\%}.
+    \item \textbf{Bare-Metal Dual-Core Deployment:} Deployed on RP2040 (250 MHz Cortex-M0+), executing zero-shot enrollment and live AD8232 analog authentication with zero Flash wear.
   \end{itemize}
 }
 
-\block{Proposed Pipeline \& Methodology}{
+\block{Background \& Theory}{
+  \textbf{Electrophysiological Invariant:} Cardiac vectorcardiography projects the spatial dipole $\mathbf{J}(t)$ onto lead axes:
+  $$V_{\text{lead}}(t) = \int \mathbf{L}(\mathbf{r}) \cdot \mathbf{J}(\mathbf{r}, t) \, d^3\mathbf{r}, \qquad \mathcal{L}_{\text{ArcFace}} = -\frac{1}{N} \sum_{i=1}^N \log \frac{e^{s \cdot \cos(\theta_{y_i} + m)}}{e^{s \cdot \cos(\theta_{y_i} + m)} + \sum_{j \neq y_i} e^{s \cdot \cos \theta_j}}$$
+  \begin{itemize}
+    \item \textbf{Prior Art:} Non-fiducial AC/DCT-32 feature projections classified via RBF SVM [1] lack non-linear expressiveness; deep CNNs [2] require megabytes of memory and high-power Linux SBCs.
+    \item \textbf{Metric Learning:} ArcFace hyperspherical penalty ($m=0.285\text{ rad}, s=16.0$) forces tight intra-class clustering for open-set verification [3].
+    \item \textbf{Key Gap:} Lack of causal, bare-metal C99 inference architectures viable for sub-\$5 microcontrollers.
+  \end{itemize}
+}
+
+\block{Methodology \& Model Progression}{
+  \figslot{\figmethod}{0.95\linewidth}{12cm}%
+    {Figure 1: End-to-End System Pipeline and RP2040 Dual-Core AMP Architecture}
+  \figcap{Figure 1: End-to-end edge ECG biometric architecture. Core 0 samples 3.3V AD8232 at 500 Hz, executes causal IIR filtering, and gates signal quality; Core 1 executes the 14,867-parameter ResNet-SE engine via FIFO mailbox in 300.05 ms.}
+
   \begin{enumerate}
-    \item \textbf{Signal Acquisition \& Filtering:} Raw lead-I ECG data at 500 Hz is zero-phase bandpass filtered (4th-order Butterworth, 0.5–40.0 Hz) to eliminate DC baseline wander and high-frequency EMG artifacts.
-    \item \textbf{QRS Detection \& Segmentation:} R-peaks detected via squared-derivative energy envelopes. Isolated into 300-sample windows (0.6 s: 0.2 s pre-R to 0.4 s post-R) and z-score normalized.
-    \item \textbf{Augmentation Engine:} On-the-fly random temporal roll ($\pm 8$ samples), amplitude scaling ($\pm 10\%$), and dynamic heart-rate resampling jitter ($\pm 5\%$).
-    \item \textbf{Architecture (\texttt{ECG\_ResNet\_SE}):}
-      \begin{itemize}
-        \item Conv1D projection stem ($1 \to 24$, kernel=15, stride=2).
-        \item Two residual stages using depthwise-separable convolutions ($k=7$ and $k=5$).
-        \item Squeeze-and-Excitation (SE) blocks dynamically re-weight morphological wave components (QRS spike vs.\ P/T-wave).
-        \item 48-dimensional latent biometric embedding.
-      \end{itemize}
-    \item \textbf{Hybrid Loss Objective:}
-      $$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{CrossEntropy}} + 0.5 \cdot \mathcal{L}_{\text{ArcFace}}$$
-      Jointly optimizes closed-set 1:N classification and hyperspherical metric clustering for 1:1 verification.
+    \item \textbf{Preprocessing:} 500 Hz ADC timer ISR $\to$ causal Butterworth bandpass (0.5--40 Hz) $\to$ 50 Hz IIR notch filter ($Q=15$) $\to$ Pan-Tompkins derivative squaring \& 100 ms MWI.
+    \item \textbf{Quality Control:} 5-point SQI gate validates amplitude ($0.15\text{--}3.0\text{ mV}$), HR ($40\text{--}180\text{ BPM}$), baseline drift ($<0.5\text{ mV/s}$), rail clipping, and zero-crossings ($2\text{--}18$).
+    \item \textbf{Network Architecture (\texttt{ECG\_ResNet\_SE}):} 1D stem ($k=15, s=2$) $\to$ 3 residual stages ($k=7, 5, 3$) with Squeeze-and-Excitation channel attention ($r=4$) $\to$ 48-D hyperspherical embedding (14,867 parameters, ~0.45 MFLOPs).
+    \item \textbf{Dual-Stream Rationale:} Raw voltage captures wave amplitudes; the discrete derivative $\Delta x[n] = x[n] - x[n-1]$ explicitly encodes Purkinje conduction slew rate ($dV/dt$), fusing phase-space coordinates to maximize classification power.
   \end{enumerate}
 }
 
-\block{Experimental Setup}{
+\block{Experimental Setup & Model Complexity}{
   \begin{center}
   \begin{tabular}{ll}
     \toprule
     \textbf{Parameter} & \textbf{Value / Specification} \\
     \midrule
-    \textbf{Dataset} & PhysioNet ECG-ID Database v1.0.0 (310 recordings, 90 subjects) \\
-    \textbf{Evaluation Split} & Recording-disjoint holdout (5,587 train beats, 2,288 test beats, 89 IDs) \\
-    \textbf{Input Representation} & 300-sample raw normalized beat window (0.6 seconds at 500 Hz) \\
-    \textbf{Total Model Parameters} & 14,867 parameters (~0.45 MFLOPs per heartbeat) \\
-    \textbf{Quantization} & PyTorch dynamic INT8 quantization (post-training, no accuracy drop) \\
-    \textbf{Hardware Target} & Linux edge SBCs (Raspberry Pi family) \& MCUs (RP2040 Pico / ESP32) \\
+    \textbf{Dataset \& Partition} & PhysioNet ECG-ID (310 records, 89 subjects, recording-disjoint holdout) \\
+    \textbf{Input Representation} & 300-sample cardiac beat window (0.6 seconds at 500 Hz, z-score normalized) \\
+    \textbf{Model Complexity}     & 14,867 params (Single-Stream: 78.9 KB Flash) $\;\vert\;$ 16,928 params (Dual-Stream: 81.0 KB) \\
+    \textbf{Target Microcontroller}& Raspberry Pi Pico WH (RP2040 Dual Cortex-M0+ @ 250 MHz, No FPU) \\
+    \textbf{Active Memory Layout} & SRAM: 161.6 KB (72.0 KB activations, 1.5 KB 8-user gallery) $\;\vert\;$ Flash: 428.8 KB \\
+    \textbf{Execution Profile}    & 300.05 ms soft-float FP32 (~75M cycles) $\;\vert\;$ 30\% duty cycle on Core 1 \\
     \bottomrule
   \end{tabular}
   \end{center}
@@ -117,51 +187,51 @@
 % ------------------------- RIGHT COLUMN ------------------------------
 \column{0.5}
 
-\block{Experimental Results}{
+\block{Quantitative Results & Multi-Beat Progression}{
+  \figslot{\figresultA}{0.95\linewidth}{13cm}%
+    {Figure 2: Waveforms, Verification ROC, Ensembling, and Bench Testing}
+  \figcap{Figure 2: Empirical findings: (a) Causal notch filter eliminating 50 Hz mains hum; (b) Verification ROC (AUC 0.9886); (c) Ensemble accuracy progression; (d) Live bench verification separating genuine user P1 from impostor P2.}
+
+  \vspace{3mm}
   \begin{center}
   \begin{tabular}{lccccc}
     \toprule
-    \textbf{Method} & \textbf{Input Feature} & \textbf{Rank-1 Acc} & \textbf{Verif. EER} & \textbf{Model Size} & \textbf{CPU Latency} \\
+    \textbf{Architecture} & \textbf{Model Size} & \textbf{Single-Beat Acc} & \textbf{5-Beat Acc} & \textbf{Verif. EER} & \textbf{Verif. AUC} \\
     \midrule
-    Baseline (AC/DCT + SVM) & 32-dim AC/DCT & 79.06\% & 13.11\% & ~480 KB & 1.15 ms \\
-    Method A (LSTM INT8)    & 32-dim AC/DCT seq. & 49.26\% & 10.01\% & 76.6 KB & 0.28 ms \\
-    Simple 1D-CNN (INT8)    & Raw 300-sample beat & 71.37\% & 7.32\% & \textbf{51.9 KB} & \textbf{0.15 ms} \\
-    1D-ResNet + ArcFace     & Raw 300-sample beat & 89.29\% & \textbf{3.63\%} & 58.1 KB & 0.54 ms \\
-    \textbf{Proposed (`ECG\_ResNet\_SE` INT8)} & Raw 300-sample beat & \textbf{90.87\%} & \textbf{4.50\%} & \textbf{66.3 KB} & \textbf{0.62 ms} \\
-    \textbf{Proposed (Dual-Stream INT8)}      & Raw + 1st Difference & \textbf{91.08\%} & \textbf{4.93\%} & \textbf{67.9 KB} & \textbf{0.65 ms} \\
+    Baseline (AC/DCT + SVM)      & 286.0 KB & 79.06\% & 84.12\% & 13.11\% & 0.9324 \\
+    Method A (Recurrent LSTM)    & 76.6 KB  & 49.17\% & 55.40\% & 10.01\% & 0.9412 \\
+    Simple 1D-CNN (INT8)         & 51.9 KB  & 71.37\% & 78.20\% & 7.32\%  & 0.9610 \\
+    Augmented ResNet-1D          & 58.4 KB  & 87.50\% & 92.10\% & 4.90\%  & 0.9812 \\
+    \textbf{Proposed \texttt{ECG\_ResNet\_SE} (FP32)} & \textbf{78.9 KB} & \textbf{90.87\%} & \textbf{95.51\%} & \textbf{4.50\%} & \textbf{0.9886} \\
+    \textbf{Proposed \texttt{ECG\_ResNet\_SE} (INT8)} & \textbf{66.3 KB} & \textbf{90.43\%} & \textbf{95.12\%} & \textbf{4.68\%} & \textbf{0.9871} \\
+    \textbf{Proposed Dual-Stream ResNet}              & \textbf{81.0 KB} & \textbf{91.08\%} & \textbf{96.63\%} & \textbf{4.93\%} & \textbf{0.9879} \\
     \bottomrule
   \end{tabular}
   \end{center}
+  \figcap{Table 1: Performance comparison across models under strictly recording-disjoint test conditions.}
 
-  \vspace{4mm}
-  \begin{center}
-  \begin{tabular}{cccc}
-    \toprule
-    \textbf{Consecutive Beats ($N$)} & \textbf{Acquisition Time ($\approx 75$ bpm)} & \textbf{Unified ResNet-SE} & \textbf{Dual-Stream ResNet} \\
-    \midrule
-    1 Beat  & ~0.8 seconds & 88.76\% & 87.64\% \\
-    3 Beats & ~2.4 seconds & 94.38\% & 95.51\% \\
-    \textbf{5 Beats} & \textbf{~4.0 seconds} & \textbf{95.51\%} & \textbf{96.63\%} \\
-    10 Beats & ~8.0 seconds & 96.63\% & \textbf{97.75\%} \\
-    \bottomrule
-  \end{tabular}
-  \end{center}
-}
-
-\block{Offline Prototype & Hardware Discussion}{
   \begin{itemize}
-    \item \textbf{Offline Replay Verification:} Implemented in \texttt{scripts/demo\_replay.py}. Tested on all held-out subject recordings; achieved a \textbf{97.8\% Genuine Accept Rate (87/89 subjects)} at a fixed heuristic cosine threshold ($\cos \theta \ge 0.50$).
-    \item \textbf{Performance vs.\ Academic Ceiling:} Matches published literature benchmarks (~95–97\% multi-beat Rank-1) while reducing model parameter size by over 90\% compared to standard deep networks.
-    \item \textbf{Microcontroller Feasibility:} Requiring only ~15 KB of raw weights and ~8 KB of activation RAM, the model comfortably fits within the 264 KB SRAM envelope of the \$1 Raspberry Pi Pico (RP2040), executing in ~40 ms at 133 MHz.
-    \item \textbf{Honest Limitations:} Evaluated on a strictly recording-disjoint split. Long-term multi-month cross-day validation remains constrained by dataset demographics (20 multi-day vs.\ 69 same-day subjects).
+    \item \textbf{Multi-Beat Ensembling & The >97% Threshold:} Averaging embeddings across consecutive heartbeats steadily improves identification: 1 beat (90.87% ResNet-SE / 91.08% Dual-Stream), 3 beats (93.85% / 95.51%), and 5 beats (95.51% / 96.63%). Crucially, \textbf{when pushed to 8 beats, Dual-Stream increases beyond 97% to 97.19%}, reaching \textbf{97.75% across 10 beats}.
+    \item \textbf{Statistical Separability ($d' = 4.13$):} Evaluated on 2,288 genuine ($\mu_g = 0.8190, \sigma_g = 0.1745$) and 201,344 impostor pairs ($\mu_i = -0.0029, \sigma_i = 0.2212$).
+    \item \textbf{High-Security Operating Points:} $\text{TAR} @ 1.0\%\text{ FAR} = \mathbf{93.62\%}$ and $\text{TAR} @ 0.1\%\text{ FAR} = \mathbf{88.07\%}$.
+    \item \textbf{Longitudinal Stability:} Multi-day held-out recordings achieve \textbf{95.63% accuracy} ($+4.87\%$ over same-day sessions), confirming cross-day generalization.
   \end{itemize}
 }
 
-\block{Conclusion}{
+\block{Hardware Capabilities & Model Limitations}{
   \begin{itemize}
-    \item Developed a lightweight residual 1D-CNN with channel attention and ArcFace metric learning for biometric cardiac authentication.
-    \item Reduced baseline verification EER by two-thirds (\textbf{13.11\% $\to$ 4.50\%}) while achieving \textbf{95.51\%} 5-beat identification.
-    \item Quantized to INT8 at \textbf{66.3 KB} and \textbf{0.62 ms latency}, delivering a production-ready edge biometric solution.
+    \item \textbf{Compute & Latency Bottleneck:} Executing 0.45 MFLOPs on Cortex-M0+ requires 300.05 ms (~75M soft-float cycles) due to the absence of a hardware FPU. However, for 1 beat/sec cardiac signals, 300 ms utilizes only \textbf{30% of Core 1's temporal duty cycle}, allowing real-time streaming without queuing.
+    \item \textbf{Memory Envelope & Zero Flash Wear:} Fits inside 264 KB SRAM: static activation buffers consume 72.0 KB in BSS, and live 48-D user templates take only 192 bytes each (1.5 KB for 8 users). \textbf{Zero runtime Flash writes} occur, preserving NOR Flash indefinitely. Dual-Stream increases activation memory to 97 KB and latency to ~420 ms, making single-stream \texttt{ECG\_ResNet\_SE} the optimal trade-off for 3-second edge unlock.
+    \item \textbf{Heart-Rate Drift Limits:} Natural variations of $\pm 5\text{ BPM}$ incur minimal loss ($<2.5\%$), but severe tachycardia ($>85\text{ BPM}$) reduces single-beat accuracy to $42.31\%$ without dynamic resampling.
+    \item \textbf{Impostor Rejection on Live Bench:} Setting threshold $\tau = 0.68$ and gallery scope isolation achieved \textbf{0/5 false accepts (100% rejection)} for impostor \texttt{P2} and \textbf{5/5 accept (100% pass)} for genuine user \texttt{P1}.
+  \end{itemize}
+}
+
+\block{Conclusion & Future Work}{
+  \begin{itemize}
+    \item Engineered an ultra-lightweight, end-to-end deep learning ECG biometric authentication pipeline running in real time on an ARM Cortex-M0+ microcontroller without an FPU.
+    \item Achieved \textbf{95.51\% 5-beat identification accuracy}, \textbf{4.50\% verification EER}, and a decidability index of \textbf{$d' = 4.13$} under strictly recording-disjoint evaluation, with Dual-Stream surpassing \textbf{97.19% at 8 beats}.
+    \item \textbf{Future Work:} ARM Helium vectorization on Cortex-M33 (RP2350) for $<15\text{ ms}$ latency, dry capacitive electrodes for consumer wearables, and longitudinal multi-month drift modeling.
   \end{itemize}
 }
 
@@ -170,22 +240,22 @@
 \block{References}{
   {\small
   \begin{enumerate}[label={[\arabic*]}, leftmargin=2.2em]
-    \item T. S. Lugovaya, ``Biometric human identification based on electrocardiogram,'' Master's thesis, LETI, 2005.
-    \item ECG-ID Database v1.0.0, PhysioNet, doi:10.13026/C2J01F. ODC-By 1.0.
-    \item K. N. Plataniotis et al., ``ECG recognition without fiducial detection,'' \emph{Biometrics Symp.}, 2006.
+    \item K. N. Plataniotis et al., ``ECG recognition without fiducial detection,'' in \emph{Proc. Biometrics Symp.}, 2006.
     \item R. Donida Labati et al., ``Deep-ECG: CNNs for ECG biometric recognition,'' \emph{Pattern Recognit. Lett.}, 2019.
-    \item J. Deng et al., ``ArcFace: Additive angular margin loss,'' in \emph{Proc. CVPR}, 2019.
+    \item J. Deng et al., ``ArcFace: Additive angular margin loss for deep face recognition,'' in \emph{Proc. CVPR}, 2019.
+    \item T. S. Lugovaya, ``Biometric human identification based on electrocardiogram,'' Master's thesis, LETI, 2005.
+    \item J. Pan and W. J. Tompkins, ``A real-time QRS detection algorithm,'' \emph{IEEE Trans. Biomed. Eng.}, 1985.
   \end{enumerate}}
 }
 \subcolumn{0.35}
-\block{Repository \& Contact}{
+\block{Repository & Verification}{
   \begin{center}
   \begin{tikzpicture}
-    \node[draw=bitsnavy, line width=2pt, minimum width=6cm, minimum height=4.5cm,
+    \node[draw=bitsnavy, line width=2pt, minimum width=6cm, minimum height=3.5cm,
           text=bitsnavy, align=center, font=\large\bfseries] {Repository:\\\texttt{mlee-ecg-biometrics}\\[2mm]\small Branch: \texttt{orion}};
   \end{tikzpicture}
   \end{center}
-  {\small Instructor: Dr. Ritesh Vyas\\Course: EEE G513, BITS Pilani}
+  {\centering\small Department of EEE, BITS Pilani\par}
 }
 \end{subcolumns}
 

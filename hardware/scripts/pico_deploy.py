@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import glob
 import os
 import subprocess
 import sys
@@ -22,7 +23,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 BUILD_DIR = ROOT / "hardware" / "build_pico"
 UF2_PATH = BUILD_DIR / "pico_ecg_biometrics.uf2"
-SERIAL_PORT = "/dev/ttyACM0"
+
+
+def detect_serial_port() -> str:
+    """Auto-detect Raspberry Pi Pico CDC serial port (/dev/ttyACM0, /dev/ttyACM1, ...)."""
+    if Path("/dev/ttyACM0").exists():
+        return "/dev/ttyACM0"
+    ports = sorted(glob.glob("/dev/ttyACM*"))
+    return ports[0] if ports else "/dev/ttyACM0"
+
+
+SERIAL_PORT = detect_serial_port()
 
 
 def log(msg: str):

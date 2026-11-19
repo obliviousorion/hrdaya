@@ -46,3 +46,4 @@ results/*/*/details.json
 
 # Course-provided PDFs (handouts, instructions, poster template): keep out of the repo
 sources/*.pdf
+*.zip
