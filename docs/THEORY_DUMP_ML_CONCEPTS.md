@@ -153,6 +153,9 @@ In real-world Biometric Systems, closed-set classification is **completely usele
    - If two beats are from the **same person**, their vectors point in nearly identical directions ($\cos\theta \approx 1.0$).
    - If two beats are from **different people**, their vectors point far apart ($\cos\theta \approx 0.0$).
 
+![Figure 1: End-to-End Embedded ECG Biometric Verification Pipeline](file:///home/orion/projects/mlee/mlee-ecg-biometrics/report/figures/pipeline.png)
+*Figure 1: End-to-End Edge ECG Biometric Verification Pipeline on the RP2040 Cortex-M0+ (Dual-Core AMP architecture showing Core 0 DSP filtering, Pan-Tompkins QRS detection, and Core 1 Deep Metric Inference).*
+
 ---
 
 ## 3. The 6-Stage ML Evolutionary Journey ("Why We Did What We Did")
@@ -504,6 +507,9 @@ $$\bar{\mathbf{e}} = \frac{\sum_{k=1}^K \mathbf{e}_k}{||\sum_{k=1}^K \mathbf{e}_
    - For $N=5$: $P(\text{Error}) \approx 0.81\%$
    - For $N=8$: $P(\text{Error}) \approx \mathbf{0.18\%}$  
    This mathematical cancellation of uncorrelated noise is why 8 beats easily pushes verification accuracy **past 97% to 97.19%**!
+
+![Figure 2: Empirical Verification & Multi-Beat Ensemble Progression](file:///home/orion/projects/mlee/mlee-ecg-biometrics/report/figures/figure2_qualitative.png)
+*Figure 2: Empirical Verification & Multi-Beat Ensemble Progression: (a) 50 Hz mains notch suppression; (b) Verification ROC comparing ResNet-SE (AUC: 0.9886) vs. LSTM vs. SVM; (c) Multi-beat voting progression crossing the 97% target at 8 beats (97.19%) and 10 beats (97.75%); (d) Live bench verification separating genuine probes (100% pass) from impostor probes (100% rejection).*
 
 ---
 
