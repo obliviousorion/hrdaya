@@ -53,19 +53,26 @@ def enhance_html_elements(html: str) -> str:
     """Style images into figures and enhance blockquotes with callout icons."""
     # Convert paragraph images and adjacent italics into <figure> and <figcaption>
     def replace_figure(match):
-        img_src = match.group(1)
-        img_alt = match.group(2)
-        caption = match.group(3)
+        full_img = match.group(1)
+        caption = match.group(2).strip()
         return (
             f'<figure class="report-figure">\n'
-            f'  <img src="{img_src}" alt="{img_alt}" />\n'
+            f'  {full_img}\n'
             f'  <figcaption>{caption}</figcaption>\n'
             f'</figure>'
         )
 
-    # Matches <p><img src="..." alt="..." />\n<em>...</em></p>
+    # Matches <p><img ... />\n<em>...</em></p> regardless of attribute order
     html = re.sub(
-        r'<p><img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\s*\/>\s*<em>(.*?)<\/em><\/p>',
+        r'<p>\s*(<img[^>]+>)\s*<em>(.*?)<\/em>\s*<\/p>',
+        replace_figure,
+        html,
+        flags=re.DOTALL
+    )
+
+    # Also handle if image is in its own paragraph followed by paragraph with em
+    html = re.sub(
+        r'<p>\s*(<img[^>]+>)\s*<\/p>\s*<p>\s*<em>(.*?)<\/em>\s*<\/p>',
         replace_figure,
         html,
         flags=re.DOTALL
@@ -180,6 +187,8 @@ def build_pdf():
 
     .header-logo {
         height: 55px;
+        width: auto !important;
+        max-width: none !important;
         float: right;
         margin-bottom: 10px;
     }
@@ -303,6 +312,7 @@ def build_pdf():
     /* Tables */
     table {
         width: 100%;
+        max-width: 100%;
         border-collapse: collapse;
         margin: 14px 0;
         font-size: 8.6pt;
@@ -358,23 +368,31 @@ def build_pdf():
         color: #166534;
     }
 
-    /* Figures */
+    /* Figures - STRICT PAGE CONSTRAINTS */
     figure.report-figure {
+        display: block;
+        width: 100%;
+        max-width: 100%;
         margin: 16px 0;
         text-align: center;
         page-break-inside: avoid;
         background-color: #ffffff;
-        padding: 8px;
+        padding: 6px;
         border: 1px solid #cbd5e1;
         border-radius: 6px;
+        box-sizing: border-box;
     }
 
-    figure.report-figure img {
-        max-width: 100%;
-        height: auto;
+    figure.report-figure img,
+    p img,
+    img:not(.header-logo) {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
         border-radius: 4px;
         display: block;
         margin: 0 auto;
+        box-sizing: border-box;
     }
 
     figcaption {
