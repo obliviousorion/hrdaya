@@ -18,7 +18,7 @@
 |:---:|:---:|:---:|:---:|:---:|
 | single-beat rank-1 | verification EER | on-device inference | parameters | PyTorch vs. C delta |
 
-[Report](docs/report.pdf) · [Poster](docs/poster.pdf) · [Engineering Journal](docs/JOURNAL.md) · [Hardware Journal](docs/JOURNAL_2.md)
+[Docs](docs/) [Engineering Journal](docs/JOURNAL.md) · [Hardware Journal](docs/JOURNAL_2.md)
 
 </div>
 
